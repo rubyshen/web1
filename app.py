@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Apr 27 12:56:44 2025
+Created on Tue May 14 15:00:00 2025 # Updated creation date
 
 @author: USER
 """
@@ -11,7 +11,7 @@ import pymysql
 app = Flask(__name__) # Flask 會預設使用 'static' 資料夾，並在 'templates' 資料夾中尋找模板
 
 # MySQL 連線設定
-db_config = {
+db_config = { # Consider moving sensitive info out of code
     "host": "127.0.0.1",
     "user": "openadr",
     "password": "1118",
@@ -171,6 +171,32 @@ def api_meter_values():
         "charge_point_ids": charge_point_ids_for_filter
     })
 
+# --- 新增：充電站詳細頁面路由 ---
+@app.route("/station/<int:station_id>", methods=["GET"])
+def station_detail(station_id):
+    # 您可以在這裡從資料庫獲取該充電站的詳細資訊
+    # 為了範例，我們只傳遞 station_id
+    return render_template("station_detail.html", station_id=station_id)
+
+# --- 新增：獲取充電站充電槍用電量數據的 API ---
+@app.route("/api/station_data/<int:station_id>", methods=["GET"])
+def api_station_data(station_id):
+    # 這裡用假數據模擬不同充電槍的用電量曲線
+    # 實際應用中，您需要從資料庫查詢 charging_datas 或 metervaule_datas
+
+    # 假設每個充電站有 2 到 4 支充電槍
+    num_guns = (station_id % 3) + 2 # 簡單的根據ID產生不同數量的槍
+    data = []
+    for i in range(num_guns):
+        gun_id = f"{station_id}-{i+1}" # 模擬充電槍ID (例如 1-1, 1-2, 2-1, etc.)
+        # 模擬隨機用電量數據 (例如 60個點，模擬一小時每分鐘的數據)
+        power_values = [round(abs(5 + random.random() * 20 + (j/60)*5 - (j/30)*3 + (random.random()-0.5)*5 ), 2) for j in range(60)]
+        # 確保沒有負值
+        power_values = [max(0, val) for val in power_values]
+        data.append({"gun_id": gun_id, "power_data": power_values})
+
+    return jsonify(data)
+
 # Add new registered user
 @app.route("/add_user", methods=["POST"])
 def add_user():
@@ -195,4 +221,7 @@ def add_user():
     return redirect(url_for('home', page='customer_management', subpage='registered_users'))
 
 if __name__ == "__main__":
+    import random # Import random for mock data
+    # Set use_reloader=False if you encounter issues with multiple database connections
+    # due to the reloader process.
     app.run(host="0.0.0.0", port=5050, debug=True, use_reloader=True)

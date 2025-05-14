@@ -1,83 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <title>充電站管理系統</title>
-    {# <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet"> #}
-    <link href="https://bootswatch.com/5/cerulean/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body { padding: 30px; font-family: 'Arial', sans-serif; background-color: #f0f2f5; /* padding-top will be set by JS */ }
-        .navbar { padding: 10px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .container-fluid { background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-top: 20px; }
-        
-        /* Styles for the new vertical nav pills */
-        .nav-pills.flex-column .nav-item {
-            width: 100%; /* Make nav items take full width of their column */
-        }
-        .nav-pills.flex-column .nav-link {
-            color: #495057; /* Darker text for better readability */
-            border: none;
-            border-radius: 0.375rem; /* Bootstrap's default border-radius */
-            padding: 0.75rem 1rem;   /* Standard padding */
-            margin-bottom: 5px;    /* Space between vertical items */
-            background: #e9ecef;
-            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, transform 0.2s ease-in-out;
-            font-size: 0.9rem; 
-            text-align: left;      /* Align text to the left */
-            display: flex;         /* For icon alignment */
-            align-items: center;   /* Vertically align icon and text */
-        }
-        .nav-pills.flex-column .nav-link i {
-            margin-right: 0.5rem; /* Space between icon and text */
-            font-size: 1.1rem;    /* Slightly larger icons */
-        }
-        .nav-pills.flex-column .nav-link:hover {
-            background-color: #0d6efd; /* Primary color on hover */
-            color: #fff;
-            transform: translateX(3px); /* Slight move effect on hover */
-        }
-        .nav-pills.flex-column .nav-link.active {
-            background: #0d6efd; /* Primary color for active */
-            color: #fff;
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(13,110,253,0.4);
-        }
-        .card-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; color: #333; }
-        .table { margin-top: 20px; font-size: 0.9rem; }
-        .table-striped tbody tr:nth-child(odd) { background-color: #f8f9fa; }
-        .table thead { background-color: #343a40; color: white; }
-        .pagination { justify-content: center; font-size: 1rem; margin-top: 30px; }
-        .btn-primary { border-radius: 0.375rem; } /* Standard Bootstrap radius */
-        .navbar-light { background-color: #ffffff; }
-        .filter-card { margin-bottom: 20px; border: 1px solid #dee2e6; border-radius: 0.375rem;}
-        .content-area { /* For the right column content */
-            padding-left: 15px; /* Add some padding if needed */
-        }
-        #konva-diagram-container {
-            width: 100%; /* Make it take the full width of its column */
-            max-width: 100%; /* Ensure it doesn't exceed parent width */
-            /* Set a max-height or aspect-ratio to prevent excessive height with tall images */
-            /* For example, max-height: 70vh; (70% of viewport height) */
-            /* Or, maintain an aspect ratio if you know it, e.g., padding-bottom: 56.25%; for 16:9, but this is trickier with Konva */
-            overflow: hidden; /* Hide parts of the Konva canvas that are too large */
-        }
-    </style>
-</head>
-<body>
+{% extends "base.html" %} {# 繼承 base.html #}
 
-<!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-light bg-white fixed-top">
-    <div class="container-fluid justify-content-center">
-        <span class="navbar-brand mb-0 h1 fs-2 fw-bold text-dark">充電站管理系統</span>
-    </div>
-</nav>
+{% block title %}充電站管理系統 - {{ page | replace('_', ' ') | title }}{% endblock %} {# 覆蓋標題 #}
 
-<!-- 主內容 -->
-<div class="container-fluid">
-    <div class="row">
-        <!-- 左側選單 -->
-        <div class="col-md-3">
+{% block left_menu %} {# 填充左側菜單區塊 #}
             <ul class="nav nav-pills flex-column">
                 <li class="nav-item">
                     <a class="nav-link {% if page == 'charge_station' %}active{% endif %}" href="{{ url_for('home', page='charge_station') }}">
@@ -110,10 +35,9 @@
                     </a>
                 </li>
             </ul>
-        </div>
+{% endblock %} {# 結束左側菜單區塊 #}
 
-        <!-- 右側內容顯示 -->
-        <div class="col-md-9 content-area">
+{% block content %} {# 填充主要內容區塊 #}
             {% if page == "charge_station" %} {# CHARGE STATION CONTENT - Vue will handle this #}
                 {% raw %}
                 <div id="charge-station-diagram-app">
@@ -122,7 +46,7 @@
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">載入中...</span>
                         </div>
-                    </div>                   
+                    </div>
                     <!-- Container for Konva Stage -->
                     <div v-show="!loading" ref="konvaContainerRef" id="konva-diagram-container" style="border: 1px solid #ccc;">
                         <!-- Konva will draw here -->
@@ -200,7 +124,7 @@
                     <nav aria-label="Page navigation" v-if="totalPages > 1">
                         <ul class="pagination justify-content-center">
                             <li class="page-item" :class="{ disabled: currentPage === 1 }"><a class="page-link" href="#" @click.prevent="fetchMeterData(currentPage - 1)">上一頁</a></li>
-                            <li class="page-item disabled"><span class="page-link">頁數：{{ currentPage }} / {{ totalPages }}</span></li>
+                            <li class="page-item disabled"><span class="page-link">頁數：{{ currentPage }} / {{ total_pages }}</span></li>
                             <li class="page-item" :class="{ disabled: currentPage === totalPages }"><a class="page-link" href="#" @click.prevent="fetchMeterData(currentPage + 1)">下一頁</a></li>
                         </ul>
                     </nav>
@@ -282,11 +206,9 @@
                      </div>
                 {% endif %} {# endif datas #}
             {% endif %} {# endif subpage == "add_user" / page != "charge_station" #}
-        </div> <!-- end col-md-9 -->
-    </div> <!-- end row -->
-</div>
+{% endblock %} {# 結束主要內容區塊 #}
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+{% block body_scripts %} {# 填充 body 結束前的 script 區塊 #}
 {# Original unpkg links - commented out for testing #}
 {# <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script> #}
 {# <script src="https://unpkg.com/konva@latest/konva.min.js"></script> #}
@@ -294,6 +216,7 @@
 <script src="https://cdn.jsdelivr.net/npm/konva@9.3.6/konva.min.js"></script>
 
 <script>
+
 // 從全域 Vue 物件中解構出需要的方法
 const { ref, onMounted, computed, createApp } = Vue;
 
@@ -311,6 +234,7 @@ const meterValuesAppSetup = {
         const fetchMeterData = async (pageNum = 1) => {
             loading.value = true;
             currentPage.value = pageNum;
+            // Jinja2 will render this URL before sending to browser
             let url = `{{ url_for('api_meter_values') }}?page_num=${currentPage.value}`;
             if (selectedCpId.value) {
                 url += `&filter_cp_id=${selectedCpId.value}`;
@@ -360,7 +284,8 @@ const meterValuesAppSetup = {
 };
 
 if (document.getElementById('meter-values-app')) {
-    createApp(meterValuesAppSetup).mount('#meter-values-app');
+    // Use Vue.createApp when using global build
+    Vue.createApp(meterValuesAppSetup).mount('#meter-values-app');
 }
 
 // Vue app for Charge Station Diagram
@@ -375,7 +300,8 @@ const chargeStationDiagramAppSetup = {
         const sites = ref([]); // Array of site objects {id, name, diagram_x, diagram_y}
         const siteStatuses = ref({}); // Object: { site_id: { available_guns: X, used_guns: Y } }
         const loading = ref(true);
-        const csmsImageSrc = ref("{{ url_for('static', filename='csms.jpg') }}"); 
+        // Jinja2 will render this URL before sending to browser
+        const csmsImageSrc = ref("{{ url_for('static', filename='csms.jpg') }}");
 
         const initialSiteCapacities = ref({}); // To store total guns per site
         // Reactive properties for stage dimensions and background image
@@ -386,12 +312,12 @@ const chargeStationDiagramAppSetup = {
         // Reactive properties for tooltip
         const tooltipVisible = ref(false);
         const tooltipText = ref('');
-        const tooltipConfig = ref({ x: 0, y: 0, opacity: 0.9 }); 
+        const tooltipConfig = ref({ x: 0, y: 0, opacity: 0.9 });
 
         const fetchSitesData = async () => {
-            // This remains the same
+            // Jinja2 will render this URL before sending to browser
             try {
-                const response = await fetch("{{ url_for('api_get_charge_sites') }}"); // Jinja renders this URL
+                const response = await fetch("{{ url_for('api_get_charge_sites') }}");
                 if (!response.ok) throw new Error('Failed to fetch sites');
                 sites.value = await response.json();
             } catch (error) {
@@ -400,9 +326,9 @@ const chargeStationDiagramAppSetup = {
         };
 
         const fetchSiteStatusesData = async () => {
-            // This remains the same
+            // Jinja2 will render this URL before sending to browser
             try {
-                const response = await fetch("{{ url_for('api_get_charge_point_statuses') }}"); // Jinja renders this URL
+                const response = await fetch("{{ url_for('api_get_charge_point_statuses') }}");
                 if (!response.ok) throw new Error('Failed to fetch site statuses');
                 const statuses = await response.json();
                 siteStatuses.value = statuses; // Assign to the ref
@@ -446,6 +372,7 @@ const chargeStationDiagramAppSetup = {
                 // The stageConfig (width/height of the canvas) should NOT change here. It's fixed by the container.
                 // We scale the *content* (background image, sites) instead.
                 // Drawing is handled by watchEffect
+                console.log("CS DIAGRAM: img.onload - konvaBgImage and contentScale updated. WatchEffect should re-run.");
             };
             img.onerror = () => {
                 console.error("CS DIAGRAM: Background image FAILED to load for Konva. Src:", img.src);
@@ -466,22 +393,22 @@ const chargeStationDiagramAppSetup = {
             if (!site || !stageInstance) return;
 
             // Adjust pointer position based on content group scale
-            let pointerPosition = stageInstance.getPointerPosition();
+            let pointerPosition = stageInstance.getPointerPosition(); // Use stageInstance
             if (!pointerPosition) return;
 
             // If content is scaled, transform pointer to scaled coordinates
             // This part is not strictly needed if sites are on mainLayer and their coords are already scaled
             // But keeping it for reference if interaction with scaled contentGroup items was needed.
-            // if (contentGroup && contentGroup.scaleX() !== 1) { 
+            // if (contentGroup && contentGroup.scaleX() !== 1) {
             //     const transform = contentGroup.getAbsoluteTransform().copy().invert();
             //     pointerPosition = transform.point(pointerPosition);
             // }
 
             const status = siteStatuses.value[site.id] || { available_guns: 'N/A', used_guns: 'N/A' };
-            
+
             tooltipText.value = `${site.name}\n可用: ${status.available_guns}\n使用中: ${status.used_guns}`;
-            // Tooltip position needs to be in stage coordinates, not scaled content coordinates
-            tooltipConfig.value.x = stageInstance.getPointerPosition().x + 15;
+            // Tooltip position needs to be in stage coordinates
+            tooltipConfig.value.x = stageInstance.getPointerPosition().x + 15; // Use stageInstance
             tooltipConfig.value.y = stageInstance.getPointerPosition().y + 15;
             tooltipVisible.value = true;
             // Opacity is handled by the watcher for tooltipConfig
@@ -494,10 +421,20 @@ const chargeStationDiagramAppSetup = {
         const handleKonvaMouseMove = (konvaEvt) => {
             if (tooltipVisible.value && stageInstance) {
                 let pointerPosition = stageInstance.getPointerPosition();
-                if (!pointerPosition) return;
+                if (!pointerPosition) return; // Use stageInstance
                 // Tooltip position is in stage coordinates
                 tooltipConfig.value.x = pointerPosition.x + 15;
                 tooltipConfig.value.y = pointerPosition.y + 15;
+            }
+        };
+
+        // Konva click handler for site navigation
+        const handleKonvaClick = (konvaEvt) => {
+            const group = konvaEvt.target.getParent() || konvaEvt.target; // Event might be on rect or group
+            const site = group.attrs.siteData;
+            if (site && site.id) {
+                // Use url_for from Jinja, rendered by Flask
+                window.location.href = `{{ url_for('station_detail', station_id=0) }}`.replace('/0', `/${site.id}`);
             }
         };
 
@@ -505,7 +442,6 @@ const chargeStationDiagramAppSetup = {
             console.log("CS DIAGRAM: onMounted() called. konvaContainerRef.value:", konvaContainerRef.value);
             loading.value = true;
 
-            loadBackgroundImageAndInitStage();
             await Promise.all([fetchSitesData(), fetchSiteStatusesData()]);
             console.log("CS DIAGRAM: Data fetching complete. Sites:", sites.value.length, "Site Statuses:", Object.keys(siteStatuses.value).length);
             loading.value = false;
@@ -517,7 +453,7 @@ const chargeStationDiagramAppSetup = {
                     const containerRect = konvaContainerRef.value.getBoundingClientRect();
                     stageConfig.value.width = containerRect.width;
                     stageConfig.value.height = Math.min(containerRect.width * (9/16), 600); // Or your preferred height logic
-                    
+
                     console.log("CS DIAGRAM: Container dimensions for stage (after nextTick):", stageConfig.value.width, "x", stageConfig.value.height);
 
                     if (stageConfig.value.width > 0 && stageConfig.value.height > 0) {
@@ -531,8 +467,8 @@ const chargeStationDiagramAppSetup = {
                             stageInstance.add(mainLayer);
                             contentGroup = new Konva.Group(); // Group for background image
                             mainLayer.add(contentGroup);
-                            
-                            tooltipLabel = new Konva.Label({ /* ... tooltip config ... */ });
+
+                            tooltipLabel = new Konva.Label({ listening: false }); // 讓 tooltip 不攔截滑鼠事件
                             tooltipLabel.add(new Konva.Tag({ fill: '#333', stroke: '#555', cornerRadius: 3, pointerDirection: 'down', pointerWidth: 10, pointerHeight: 10, lineJoin: 'round', shadowColor: 'black', shadowBlur: 5, shadowOpacity: 0.4 }));
                             tooltipLabel.add(new Konva.Text({ name: 'tooltipTextNode', text: '', fontFamily: 'Arial', fontSize: 12, padding: 8, fill: 'white' }));
                             mainLayer.add(tooltipLabel); // Tooltip is on mainLayer, not scaled
@@ -542,9 +478,10 @@ const chargeStationDiagramAppSetup = {
                             stageInstance.height(stageConfig.value.height);
                             console.log("CS DIAGRAM: Konva Stage dimensions updated.");
                         }
-                        // Trigger recalculation of scale if image is already loaded
-                        if (konvaBgImage.value) {
-                            loadBackgroundImageAndInitStage(); // This will re-calculate scale based on new stageConfig
+                        // 確保在獲取到舞台尺寸後才開始載入背景圖片
+                        if (!konvaBgImage.value) { // 只有在圖片還沒開始載入時才載入
+                            console.log("CS DIAGRAM: Stage dimensions set, now loading background image.");
+                            loadBackgroundImageAndInitStage();
                         }
                     } else {
                         console.warn("CS DIAGRAM: Container dimensions are still zero after nextTick. Cannot initialize/update Konva stage properly.");
@@ -553,7 +490,7 @@ const chargeStationDiagramAppSetup = {
                     console.error("CS DIAGRAM: konvaContainerRef is null after nextTick!");
                 }
                 console.log("CS DIAGRAM: onMounted complete (after nextTick). loading:", loading.value, "konvaBgImage present:", !!konvaBgImage.value, "stageConfig:", JSON.parse(JSON.stringify(stageConfig.value)));
-            
+
                 // Start simulation after everything is mounted and data is fetched
                 if (Object.keys(siteStatuses.value).length > 0 && Object.keys(initialSiteCapacities.value).length > 0) {
                     console.log("CS DIAGRAM: Starting site status simulation.");
@@ -588,11 +525,11 @@ const chargeStationDiagramAppSetup = {
         // Watch for changes to draw/redraw Konva elements
         Vue.watchEffect(() => {
             console.log(
-                "CS DIAGRAM: watchEffect triggered. Loading:", loading.value, 
-                "Stage OK:", !!(stageInstance && mainLayer), 
-                "BG Image OK:", !!konvaBgImage.value, 
+                "CS DIAGRAM: watchEffect triggered. Loading:", loading.value,
+                "Stage OK:", !!(stageInstance && mainLayer),
+                "BG Image OK:", !!konvaBgImage.value,
                 "Sites count:", sites.value.length,
-                "stageConfig:", JSON.parse(JSON.stringify(stageConfig.value)) 
+                "stageConfig:", JSON.parse(JSON.stringify(stageConfig.value))
             );
 
             if (!stageInstance || !mainLayer || !contentGroup || loading.value) {
@@ -600,10 +537,10 @@ const chargeStationDiagramAppSetup = {
                 else if (!stageInstance || !mainLayer || !contentGroup) console.log("CS DIAGRAM: watchEffect - stage, layer or contentGroup not ready. Returning.");
                 return;
             }
-            
+
             if (stageConfig.value.width === 0) {
                 console.warn("CS DIAGRAM: watchEffect - stageConfig.width is 0. Canvas might be hidden or drawing will be on 0-width canvas. Drawing aborted.");
-                return; 
+                return;
             }
 
             // Clear previous drawings
@@ -616,11 +553,11 @@ const chargeStationDiagramAppSetup = {
                 contentGroup.scaleX(contentScale.value);
                 contentGroup.scaleY(contentScale.value);
                 console.log("CS DIAGRAM: watchEffect - Applied scale", contentScale.value, "to contentGroup.");
-            }            
+            }
 
             // 1. Draw Background Image
             if (konvaBgImage.value && stageConfig.value.width > 0) {
-                console.log("CS DIAGRAM: watchEffect - Drawing background image.");
+                console.log("CS DIAGRAM: watchEffect - Drawing background image. konvaBgImage present:", !!konvaBgImage.value, "contentScale:", contentScale.value);
                 // Background image dimensions are its original dimensions; scaling is handled by contentGroup
                 const bgImage = new Konva.Image({
                     x: 0, y: 0,
@@ -659,7 +596,7 @@ const chargeStationDiagramAppSetup = {
                 group.add(new Konva.Text({
                     text: `${site.name}\n(可用: ${siteStatuses.value[site.id]?.available_guns ?? 'N/A'})`, // Display site name and available guns
                     fontSize: 10, // Slightly smaller font if needed to fit more text
-                    fill: 'white', 
+                    fill: 'white',
                     padding: 5, align: 'center', verticalAlign: 'middle',
                     width: 80, height: 40, listening: false // Text doesn't need to listen for events
                 }));
@@ -668,9 +605,10 @@ const chargeStationDiagramAppSetup = {
                 group.on('mouseenter', handleKonvaMouseEnter);
                 group.on('mouseleave', handleKonvaMouseLeave);
                 group.on('mousemove', handleKonvaMouseMove);
+                group.on('click', handleKonvaClick); // 添加點擊事件監聽器
                 mainLayer.add(group); // Add site markers directly to mainLayer
             });
-            
+
             // Ensure tooltip is always on top, with checks
             if (tooltipLabel && mainLayer) { // Ensure mainLayer exists
                 console.log("CS DIAGRAM: watchEffect - Attempting moveToTop. Tooltip parent:", tooltipLabel.getParent(), "Tooltip layer:", tooltipLabel.getLayer(), "MainLayer parent:", mainLayer.getParent());
@@ -711,24 +649,9 @@ const chargeStationDiagramAppSetup = {
 };
 
 if (document.getElementById('charge-station-diagram-app')) {
-    const app = createApp(chargeStationDiagramAppSetup);
+    const app = Vue.createApp(chargeStationDiagramAppSetup);
     // app.use(VueKonva); // No longer using VueKonva plugin
     app.mount('#charge-station-diagram-app');
 }
-
-// Dynamically adjust body padding-top based on navbar height
-function adjustBodyPadding() {
-    const navbar = document.querySelector('.navbar.fixed-top');
-    if (navbar) {
-        document.body.style.paddingTop = navbar.offsetHeight + 'px';
-    }
-}
-
-// Adjust on initial load
-window.addEventListener('load', adjustBodyPadding);
-// Adjust on window resize
-window.addEventListener('resize', adjustBodyPadding);
-
-</script>
-</body>
-</html>
+</script> {# 確保主邏輯的 script 標籤在這裡關閉 #}
+{% endblock %} {# 結束 body 結束前的 script 區塊 #}
