@@ -7,6 +7,7 @@ Created on Tue May 14 15:00:00 2025 # Updated creation date
 
 from flask import Flask, request, render_template, redirect, url_for, jsonify # 修改: 導入 render_template
 import pymysql
+from datetime import datetime, timedelta
 
 app = Flask(__name__) # Flask 會預設使用 'static' 資料夾，並在 'templates' 資料夾中尋找模板
 
@@ -180,22 +181,25 @@ def station_detail(station_id):
 
 # --- 新增：獲取充電站充電槍用電量數據的 API ---
 @app.route("/api/station_data/<int:station_id>", methods=["GET"])
+@app.route("/api/station_data/<int:station_id>", methods=["GET"])
 def api_station_data(station_id):
-    # 這裡用假數據模擬不同充電槍的用電量曲線
-    # 實際應用中，您需要從資料庫查詢 charging_datas 或 metervaule_datas
-
-    # 假設每個充電站有 2 到 4 支充電槍
-    num_guns = (station_id % 3) + 2 # 簡單的根據ID產生不同數量的槍
+    from datetime import datetime, timedelta
+    num_guns = (station_id % 3) + 2
     data = []
     for i in range(num_guns):
-        gun_id = f"{station_id}-{i+1}" # 模擬充電槍ID (例如 1-1, 1-2, 2-1, etc.)
-        # 模擬隨機用電量數據 (例如 60個點，模擬一小時每分鐘的數據)
-        power_values = [round(abs(5 + random.random() * 20 + (j/60)*5 - (j/30)*3 + (random.random()-0.5)*5 ), 2) for j in range(60)]
-        # 確保沒有負值
-        power_values = [max(0, val) for val in power_values]
-        data.append({"gun_id": gun_id, "power_data": power_values})
-
+        gun_id = f"{station_id}-{i+1}"
+        now = datetime.now()
+        # 模擬最近 36 筆資料，每 10 秒一筆，往前推
+        power_data = [
+            {
+                "time": (now - timedelta(seconds=(35 - j) * 10)).strftime("%H:%M:%S"),
+                "value": round(abs(5 + random.random() * 20 + (j / 10) * 1.2 - (j / 18) * 1.5 + (random.random() - 0.5) * 2), 2)
+            }
+            for j in range(36)
+        ]
+        data.append({"gun_id": gun_id, "power_data": power_data})
     return jsonify(data)
+
 
 # Add new registered user
 @app.route("/add_user", methods=["POST"])
@@ -224,4 +228,4 @@ if __name__ == "__main__":
     import random # Import random for mock data
     # Set use_reloader=False if you encounter issues with multiple database connections
     # due to the reloader process.
-    app.run(host="0.0.0.0", port=5050, debug=True, use_reloader=True)
+    app.run(host="0.0.0.0", port=3000, debug=True, use_reloader=True)

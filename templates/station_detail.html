@@ -1,9 +1,9 @@
-{% extends "base.html" %} {# 繼承 base.html #}
+{% extends "base.html" %}
 
-{% block title %}充電站管理系統 - 充電站 {{ station_id }} 詳細資訊{% endblock %} {# 覆蓋標題 #}
+{% block title %}充電站管理系統 - 充電站 {{ station_id }} 詳細資訊{% endblock %}
 
-{% block content %} {# 填充主要內容區塊 #}
-<div id="station-detail-app"> {# Vue 應用程式的掛載點 #}
+{% block content %}
+<div id="station-detail-app">
     <h3 class="mb-4">充電站 {{ station_id }} 詳細資訊</h3>
 
     {% raw %}
@@ -24,180 +24,141 @@
     <div v-else class="row">
         <div class="col-md-6" v-for="gun in gunData" :key="gun.gun_id">
             <div class="chart-title">{{ gun.gun_id }} 用電量曲線 (kW)</div>
-            <!-- 使用 id 來獲取 DOM 元素，並動態綁定 -->
-            <div class="chart-container" :id="'chartContainer_' + gun.gun_id"></div>
+            <div class="chart-container" :id="'chartContainer_' + gun.gun_id" style="height: 300px;"></div>
         </div>
     </div>
     {% endraw %}
     <div class="mt-4">
         <a href="{{ url_for('home', page='charge_station') }}" class="btn btn-secondary">返回架構圖</a>
     </div>
-</div> {# 結束 Vue 應用程式的掛載點 #}
-{% endblock %} {# 結束主要內容區塊 #}
+</div>
+{% endblock %}
 
-{% block body_scripts %} {# 填充 body 結束前的 script 區塊 #}
-
-{# 這裡引入 Vue 和 ECharts，因為它們只在這個頁面需要 #}
+{% block body_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/vue@3.4.27/dist/vue.global.min.js"></script>
-{# 引入 ECharts 函式庫 #}
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 
 <script>
-    const { ref, onMounted, onUnmounted, nextTick } = Vue; // 新增 onUnmounted
+    const { ref, onMounted, onUnmounted, nextTick } = Vue;
 
     const stationDetailAppSetup = {
         setup() {
             const gunData = ref([]);
             const loading = ref(true);
             const error = ref(null);
-            // 從 Jinja 模板獲取 station_id，確保如果是字串則加上引號，如果是數字則直接使用
-            // 假設 station_id 總是數字
-            const stationId = parseInt('{{ station_id }}', 10); 
-            // 如果 station_id 也可能是字串，則用: const stationId = '{{ station_id }}';
-            const chartInstances = ref({}); // 用來存放 ECharts 實例
-            let dataUpdateInterval = null; // 用來存放 setInterval 的 ID
+            const stationId = parseInt('{{ station_id }}', 10);
+            const chartInstances = ref({});
+            let dataUpdateInterval = null;
 
             const fetchStationData = async () => {
                 loading.value = true;
                 error.value = null;
                 try {
                     const response = await fetch(`/api/station_data/${stationId}`);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const data = await response.json();
                     gunData.value = data;
-                    console.log("Fetched gun data:", data); // Debug log
-
-                    // 在數據載入並更新 DOM 後，初始化或更新 ECharts
                     nextTick(() => {
-                        console.log("Inside nextTick. gunData.value:", gunData.value);
-                        const rootElement = document.getElementById('station-detail-app');
-                        console.log("Root element #station-detail-app exists:", !!rootElement);
-                        console.log("Checking for rendered chart containers after nextTick...");
-                        // 給瀏覽器一個極短的延遲，確保 DOM 元素完全可用
                         setTimeout(() => {
-                            console.log("Inside setTimeout(0) after nextTick. Attempting to initOrUpdateCharts.");
                             initOrUpdateCharts();
-                            startDataUpdates(); // 初始載入後開始定時更新
+                            startDataUpdates();
                         }, 0);
                     });
-
                 } catch (err) {
-                    console.error("Error fetching station data:", err);
                     error.value = err.message;
-                    gunData.value = []; // 清空數據
+                    gunData.value = [];
                 } finally {
                     loading.value = false;
                 }
             };
 
             const updateChartData = async () => {
-                // console.log("Updating chart data...");
                 try {
                     const response = await fetch(`/api/station_data/${stationId}`);
-                    if (!response.ok) {
-                        console.error(`HTTP error! status: ${response.status}`);
-                        return; // 如果請求失敗，則不更新
-                    }
+                    if (!response.ok) return;
                     const newData = await response.json();
-                    gunData.value = newData; // 更新 Vue 的數據
-
-                    // 更新 ECharts 圖表
+                    gunData.value = newData;
                     newData.forEach(gun => {
                         const chartInstance = chartInstances.value[gun.gun_id];
                         if (chartInstance) {
                             chartInstance.setOption({
+                                xAxis: {
+                                    data: gun.power_data.map(p => p.time)
+                                },
                                 series: [{
-                                    data: gun.power_data
+                                    data: gun.power_data.map(p => p.value)
                                 }]
                             });
                         }
                     });
                 } catch (err) {
-                    console.error("Error updating chart data:", err);
+                    console.error("更新數據失敗:", err);
                 }
             };
 
             const initOrUpdateCharts = () => {
-                console.log("Initializing or updating charts...");
                 gunData.value.forEach(gun => {
                     const chartDom = document.getElementById(`chartContainer_${gun.gun_id}`);
-                    // console.log(`Attempting to find chart container for gun ID: ${gun.gun_id}. Found:`, !!chartDom);
-                    if (chartDom) {
-                        let myChart = chartInstances.value[gun.gun_id];
-                        if (!myChart) { // 如果實例不存在，則初始化
-                            console.log(`Initializing chart for gun: ${gun.gun_id}`, chartDom);
-                            myChart = echarts.init(chartDom);
-                            chartInstances.value[gun.gun_id] = myChart;
-
-                            // 添加窗口大小改變時圖表自適應 (只需在初始化時添加一次)
-                            window.addEventListener('resize', () => {
-                                if (myChart) myChart.resize();
-                            });
-                        }
-                        
-                        const option = {
-                            tooltip: {
-                                trigger: 'axis',
-                                formatter: '時間 {b}: {c} kW' // 顯示時間和用電量
-                            },
-                            xAxis: {
-                                type: 'category',
-                                data: Array.from({ length: gun.power_data.length }, (_, i) => i + 1), // 模擬時間點 (1, 2, 3...)
-                                name: '時間 (分鐘)',
-                                boundaryGap: false // 讓線條從最左邊開始
-                            },
-                            yAxis: {
-                                type: 'value',
-                                name: '用電量 (kW)',
-                                axisLabel: {
-                                    formatter: '{value} kW'
-                                }
-                            },
-                            series: [{
-                                name: '用電量',
-                                type: 'line',
-                                smooth: true, // 平滑曲線
-                                data: gun.power_data,
-                                areaStyle: {}, // 添加面積圖效果
-                                emphasis: {
-                                    focus: 'series'
-                                },
-                                itemStyle: {
-                                    color: '#007bff' // 藍色線條
-                                }
-                            }],
-                            grid: { // 調整圖表區域大小
-                                left: '3%',
-                                right: '4%',
-                                bottom: '3%',
-                                containLabel: true
-                            }
-                        };
-                        myChart.setOption(option);
-
-                    } else {
-                        console.error(`Chart container not found for gun: ${gun.gun_id}`);
+                    if (!chartDom) return;
+                    let myChart = chartInstances.value[gun.gun_id];
+                    if (!myChart) {
+                        myChart = echarts.init(chartDom);
+                        chartInstances.value[gun.gun_id] = myChart;
+                        window.addEventListener('resize', () => myChart.resize());
                     }
+                    const option = {
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: function (params) {
+                                const point = params[0];
+                                return `時間 ${point.name}<br/>用電量 ${point.value} kW`;
+                            }
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: gun.power_data.map(p => p.time),
+                            name: '時間',
+                            boundaryGap: false
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: '用電量 (kW)',
+                            axisLabel: {
+                                formatter: '{value} kW'
+                            }
+                        },
+                        series: [{
+                            name: '用電量',
+                            type: 'line',
+                            smooth: true,
+                            data: gun.power_data.map(p => p.value),
+                            areaStyle: {},
+                            emphasis: {
+                                focus: 'series'
+                            },
+                            itemStyle: {
+                                color: '#007bff'
+                            }
+                        }],
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        }
+                    };
+                    myChart.setOption(option);
                 });
             };
 
-            onMounted(() => {
-                fetchStationData(); // 初始載入數據
-            });
-
             const startDataUpdates = () => {
-                if (dataUpdateInterval) clearInterval(dataUpdateInterval); // 清除舊的計時器
-                dataUpdateInterval = setInterval(updateChartData, 1000); // 每秒更新一次
-                console.log("Started data update interval.");
+                if (dataUpdateInterval) clearInterval(dataUpdateInterval);
+                dataUpdateInterval = setInterval(updateChartData, 10000); // 每 10 秒更新一次
             };
 
+            onMounted(fetchStationData);
             onUnmounted(() => {
-                if (dataUpdateInterval) {
-                    clearInterval(dataUpdateInterval); // 組件卸載時清除計時器
-                    console.log("Cleared data update interval.");
-                }
+                if (dataUpdateInterval) clearInterval(dataUpdateInterval);
             });
 
             return {
@@ -210,5 +171,5 @@
     };
 
     Vue.createApp(stationDetailAppSetup).mount('#station-detail-app');
-</script> {# 確保主邏輯的 script 標籤在這裡關閉 #}
-{% endblock %} {# 結束 body 結束前的 script 區塊 #}
+</script>
+{% endblock %}
