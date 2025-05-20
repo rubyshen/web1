@@ -7,6 +7,7 @@ Created on Tue May 14 15:00:00 2025 # Updated creation date
 
 from flask import Flask, request, render_template, redirect, url_for, jsonify # 修改: 導入 render_template
 import pymysql
+import random # 新增：導入 random 模組
 from datetime import datetime, timedelta
 
 app = Flask(__name__) # Flask 會預設使用 'static' 資料夾，並在 'templates' 資料夾中尋找模板
@@ -181,25 +182,34 @@ MOCK_SITES = [
     {"id": 4, "name": "D區慢充樁", "diagram_x": 550, "diagram_y": 300, "description": "訪客車位"},
 ]
 
-MOCK_SITE_STATUSES = {
-    # site_id: { available_guns: X, used_guns: Y, other_status_guns: Z }
-    "1": {"available_guns": 3, "used_guns": 1, "other_status_guns": 0},
-    "2": {"available_guns": 2, "used_guns": 2, "other_status_guns": 1},
-    "3": {"available_guns": 1, "used_guns": 0, "other_status_guns": 0},
-    # Site 4 might not have status yet, or it's all available
-    "4": {"available_guns": 4, "used_guns": 0, "other_status_guns": 0},
-}
+# MOCK_SITE_STATUSES 將由 api_get_charge_point_statuses 動態生成
 # --- 結束假數據 ---
 
 @app.route("/api/charge_sites", methods=["GET"])
 def api_get_charge_sites():
-    # This will be replaced with DB query later
+    # 未來這部分也可能從資料庫讀取
     return jsonify(MOCK_SITES)
 
 @app.route("/api/charge_point_statuses", methods=["GET"])
 def api_get_charge_point_statuses():
-    # This will be replaced with DB query later
-    return jsonify(MOCK_SITE_STATUSES)
+    """
+    動態生成每個充電站點的槍數狀態。
+    - "可用槍數" (available_guns) 會隨機變動。
+    - "使用中槍數" (used_guns) 會在 0 到 2 之間隨機。
+    - "其他狀態槍數" (other_status_guns) 固定為 0。
+    """
+    dynamic_statuses = {}
+    TOTAL_GUNS_PER_SITE = 2 # 根據您的要求，A,B,C,D 站點的總槍數 (可用+使用) 為 2
+    for site_info in MOCK_SITES: # MOCK_SITES 定義了有哪些站點
+        site_id_str = str(site_info['id']) # API 回傳的 key 通常是字串
+        used = random.randint(0, TOTAL_GUNS_PER_SITE)
+        available = TOTAL_GUNS_PER_SITE - used
+        dynamic_statuses[site_id_str] = {
+            "available_guns": available,
+            "used_guns": used,
+            "other_status_guns": 0 # 簡化處理，避免計算問題
+        }
+    return jsonify(dynamic_statuses)
 
 # API endpoint for Meter Values (Vue controlled)
 @app.route("/api/meter_values", methods=["GET"])
@@ -313,7 +323,6 @@ def add_user_management():
     return redirect(url_for('management_index', section='customer_admin', sub_section='registered_users'))
 
 if __name__ == "__main__":
-    import random # Import random for mock data
     # Set use_reloader=False if you encounter issues with multiple database connections
     # due to the reloader process.
     app.run(host="0.0.0.0", port=3000, debug=True, use_reloader=True)

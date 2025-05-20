@@ -493,7 +493,7 @@ const chargeStationDiagramAppSetup = {
                 if (konvaContainerRef.value) {
                     const containerRect = konvaContainerRef.value.getBoundingClientRect();
                     stageConfig.value.width = containerRect.width;
-                    stageConfig.value.height = Math.min(containerRect.width * (9/16), 400); // Or your preferred height logic
+                    stageConfig.value.height = Math.min(containerRect.width * (9/16), 500); // Or your preferred height logic
 
                     console.log("CS DIAGRAM: Container dimensions for stage (after nextTick):", stageConfig.value.width, "x", stageConfig.value.height);
 
@@ -532,33 +532,12 @@ const chargeStationDiagramAppSetup = {
                 }
                 console.log("CS DIAGRAM: onMounted complete (after nextTick). loading:", loading.value, "konvaBgImage present:", !!konvaBgImage.value, "stageConfig:", JSON.parse(JSON.stringify(stageConfig.value)));
 
-                // Start simulation after everything is mounted and data is fetched
-                if (Object.keys(siteStatuses.value).length > 0 && Object.keys(initialSiteCapacities.value).length > 0) {
-                    console.log("CS DIAGRAM: Starting site status simulation.");
-                    setInterval(() => {
-                        Object.keys(siteStatuses.value).forEach(siteId => { // 迭代所有 siteStatuses 中的 siteId
-                            const totalGuns = initialSiteCapacities.value[siteId]; // 使用已在 initialSiteCapacities 中被限制過的總槍數 (<=2)
-                            const currentStatus = siteStatuses.value[siteId];
-                            if (!currentStatus) return; // Skip if status for siteId somehow disappeared
+                // Periodically fetch site statuses from the backend
+                console.log("CS DIAGRAM: Starting periodic fetch of site statuses from backend.");
+                setInterval(async () => {
+                    await fetchSiteStatusesData();
+                }, 1000); // Fetch every 1 second
 
-                            const currentOtherGuns = currentStatus.other_status_guns || 0;
-
-                            let newUsedGuns = Math.floor(Math.random() * (totalGuns - currentOtherGuns + 1));
-                            if (newUsedGuns < 0) newUsedGuns = 0;
-
-                            let newAvailableGuns = totalGuns - newUsedGuns - currentOtherGuns;
-                            if (newAvailableGuns < 0) newAvailableGuns = 0;
-
-                            // Ensure consistency if rounding or logic makes sum exceed total temporarily
-                            if (newUsedGuns + newAvailableGuns + currentOtherGuns > totalGuns) {
-                                newAvailableGuns = totalGuns - newUsedGuns - currentOtherGuns;
-                                if (newAvailableGuns < 0) newAvailableGuns = 0; // Recorrect if needed
-                            }
-                            currentStatus.used_guns = newUsedGuns; // Directly mutate the reactive object's properties
-                            currentStatus.available_guns = newAvailableGuns;
-                        });
-                    }, 1000); // Update every 1 second
-                }
             });
             // Drawing is handled by watchEffect
         });
