@@ -23,19 +23,32 @@ db_config = { # Consider moving sensitive info out of code
 # 每頁顯示的資料筆數
 ITEMS_PER_PAGE = 10
 
-# 首頁
+# 新的主選單進入點
 @app.route("/", methods=["GET"])
-def home():
-    page = request.args.get("page", "charge_points")
-    subpage = request.args.get("subpage", "registered_users" if page == "customer_management" else None) # 預設 subpage 只在 customer_management 下
-    page_num = int(request.args.get("page_num", 1))
+def main_page():
+    """渲染主選單頁面 (main.html)"""
+    return render_template("main.html")
 
+# 原本的 home 函數，現在負責處理 "中興院區" 的內容
+# url_for('home', ...) 會對應到此函數
+@app.route("/zhongxing_campus", methods=["GET"]) # 基本路徑，page 和 subpage 會使用預設值
+@app.route("/zhongxing_campus/<page>", methods=["GET"]) # 帶有 page 參數的路徑
+@app.route("/zhongxing_campus/<page>/<subpage>", methods=["GET"]) # 帶有 page 和 subpage 參數的路徑
+def home(page="charge_points", subpage=None): # page 和 subpage 從 URL 路徑獲取
+    # page_num 仍然從查詢參數獲取，用於分頁
+    page_num = int(request.args.get("page_num", 1))
     offset = (page_num - 1) * ITEMS_PER_PAGE
 
     conn = pymysql.connect(**db_config)
     datas = []
     total_items = 0
     columns = []
+    header_title = "中興院區充電站管理" # 新增：定義院區特定的標題
+
+    # 根據新的參數傳遞方式，調整 subpage 的預設邏輯
+    if subpage is None: # 僅當 subpage 未在 URL 路徑中指定時，才應用預設值
+        if page == "customer_management":
+            subpage = "registered_users"
 
     try:
         with conn.cursor() as cursor:
@@ -44,9 +57,10 @@ def home():
                 count_query = "SELECT COUNT(*) FROM charge_points"
                 params = (offset, ITEMS_PER_PAGE)
                 count_params = ()
+                print(f"DEBUG [charge_points]: Query: {query}, Params: {params}") # 新增偵錯訊息
             elif page == "customer_management":
                 if subpage == "registered_users":
-                    query = "SELECT * FROM authorize_datas LIMIT %s, %s"
+                    query = "SELECT * FROM authorize_datas ORDER BY id DESC LIMIT %s, %s"
                     count_query = "SELECT COUNT(*) FROM authorize_datas"
                     params = (offset, ITEMS_PER_PAGE)
                     count_params = ()
@@ -55,7 +69,8 @@ def home():
                     count_query = "SELECT COUNT(*) FROM authorized_users"
                     params = (offset, ITEMS_PER_PAGE)
                     count_params = ()
-                else: # add_user
+                # add_user 頁面通常是 GET 請求顯示表單，POST 請求處理提交，這裡主要處理 GET 顯示
+                elif subpage == "add_user":
                     query = None
             elif page == "transactions":
                 query = "SELECT * FROM charging_datas ORDER BY id DESC LIMIT %s, %s"
@@ -75,26 +90,28 @@ def home():
             if query:
                 cursor.execute(query, params)
                 datas = cursor.fetchall()
+                print(f"DEBUG [{page}]: Fetched datas: {datas}") # 新增偵錯訊息
                 if datas:
                     columns = list(datas[0].keys())
                 cursor.execute(count_query, count_params)
                 result = cursor.fetchone()
                 total_items = result['COUNT(*)'] if result else 0
-            # For pages handled by Vue or no data pages, total_items remains 0 unless set otherwise
+                print(f"DEBUG [{page}]: Total items: {total_items}") # 新增偵錯訊息
+            # For pages handled by Vue or no data pages, total_items might remain 0 or be set differently
     finally:
         conn.close()
 
     total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE if total_items > 0 else 0
 
     return render_template("home.html", page=page, subpage=subpage, datas=datas, columns=columns,
-                                  current_page=page_num, total_pages=total_pages) # 修改: 使用 render_template
+                                  current_page=page_num, total_pages=total_pages, header_title=header_title) # 修改: 傳遞 header_title
 
 # --- 假數據 ---
 MOCK_SITES = [
-    {"id": 1, "name": "A區充電站", "diagram_x": 200, "diagram_y": 400, "description": "靠近入口"},
-    {"id": 2, "name": "B區充電站", "diagram_x": 600, "diagram_y": 600, "description": "停車場深處"},
-    {"id": 3, "name": "C區快充站", "diagram_x": 1900, "diagram_y": 700, "description": "快速充電專用"},
-    {"id": 4, "name": "D區慢充", "diagram_x": 2800, "diagram_y": 1000, "description": "訪客車位"},
+    {"id": 1, "name": "A區充電樁", "diagram_x": 100, "diagram_y": 100, "description": "靠近入口"},
+    {"id": 2, "name": "B區充電樁", "diagram_x": 300, "diagram_y": 150, "description": "停車場深處"},
+    {"id": 3, "name": "C區快充樁", "diagram_x": 600, "diagram_y": 200, "description": "快速充電專用"},
+    {"id": 4, "name": "D區慢充樁", "diagram_x": 550, "diagram_y": 300, "description": "訪客車位"},
 ]
 
 MOCK_SITE_STATUSES = {
@@ -220,7 +237,7 @@ def add_user():
         print(f"Database error: {e}")
         return redirect(url_for('home', page='customer_management', subpage='add_user'))
     finally:
-        conn.close()
+        if conn: conn.close()
 
     return redirect(url_for('home', page='customer_management', subpage='registered_users'))
 

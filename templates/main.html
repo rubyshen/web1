@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>充電管理系統 - 主選單</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+            margin: 0; /* Reset default margin */
+        }
+        .top-header { /* Renamed from header to avoid conflict with <header> element */
+            background-color: #343a40; /* Dark background for header */
+            color: white;
+            padding: 0.75rem 1rem; /* Standard Bootstrap navbar padding */
+            box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+        }
+        .top-header .navbar-brand {
+            color: white;
+            font-size: 1.25rem; /* Standard Bootstrap navbar-brand font size */
+        }
+        .main-container {
+            display: flex;
+            flex: 1; /* Fill remaining vertical space */
+            overflow: hidden; /* Prevent scrollbars on main container if sidebar/content are too tall */
+        }
+        .sidebar {
+            width: 250px; /* Fixed width for sidebar */
+            background-color: #f8f9fa; /* Light background for sidebar */
+            padding: 1.5rem 1rem;
+            border-right: 1px solid #dee2e6; /* Subtle border */
+            height: calc(100vh - 56px); /* Adjust based on header height, assuming header is approx 56px */
+            overflow-y: auto; /* Scroll sidebar if content overflows */
+        }
+        .content {
+            flex: 1; /* Fill remaining horizontal space */
+            padding: 2rem;
+            text-align: center;
+            overflow-y: auto; /* Scroll content if it overflows */
+            height: calc(100vh - 56px); /* Adjust based on header height */
+        }
+        .sidebar .nav-link { color: #333; padding: .5rem 1rem; }
+        .sidebar .nav-link i { margin-right: 0.5rem; }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active { background-color: #e9ecef; color: #007bff; }
+    </style>
+</head>
+<body>
+    <header class="top-header d-flex align-items-center">
+        <a class="navbar-brand" href="{{ url_for('main_page') }}">充電管理系統總覽</a>
+    </header>
+
+    <div class="main-container">
+        <nav class="sidebar">
+            <ul class="nav nav-pills flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('home', page='charge_station') }}">
+                        <i class="bi bi-buildings"></i> 中興院區
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" id="guangfu-link">
+                        <i class="bi bi-cone-striped"></i> 光復院區
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content d-flex justify-content-center align-items-center">
+            <img src="{{ url_for('static', filename='main.png') }}" alt="主架構圖" style="max-width: 90%; max-height: 80vh; object-fit: contain;">
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('guangfu-link').addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent default link behavior
+            alert('施工中');
+        });
+    </script>
+</body>
+</html>

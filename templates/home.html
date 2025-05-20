@@ -301,7 +301,7 @@ const chargeStationDiagramAppSetup = {
         const siteStatuses = ref({}); // Object: { site_id: { available_guns: X, used_guns: Y } }
         const loading = ref(true);
         // Jinja2 will render this URL before sending to browser
-        const csmsImageSrc = ref("{{ url_for('static', filename='csms.jpg') }}");
+        const csmsImageSrc = ref("{{ url_for('static', filename='csms.png') }}");
 
         const initialSiteCapacities = ref({}); // To store total guns per site
         // Reactive properties for stage dimensions and background image
@@ -333,9 +333,10 @@ const chargeStationDiagramAppSetup = {
                 const statuses = await response.json();
                 siteStatuses.value = statuses; // Assign to the ref
                 // Store initial capacities
-                Object.keys(statuses).forEach(siteId => {
+                Object.keys(statuses).forEach(siteId => { // 針對從 API 回傳的每一個 site
                     const status = statuses[siteId];
-                    initialSiteCapacities.value[siteId] = (status.available_guns || 0) + (status.used_guns || 0) + (status.other_status_guns || 0);
+                    const backendTotalGuns = (status.available_guns || 0) + (status.used_guns || 0) + (status.other_status_guns || 0);
+                    initialSiteCapacities.value[siteId] = Math.min(backendTotalGuns, 2); // 確保每個 site 的總槍數最多為 2
                 });
             } catch (error) {
                 console.error("Error fetching site statuses:", error);
@@ -495,8 +496,8 @@ const chargeStationDiagramAppSetup = {
                 if (Object.keys(siteStatuses.value).length > 0 && Object.keys(initialSiteCapacities.value).length > 0) {
                     console.log("CS DIAGRAM: Starting site status simulation.");
                     setInterval(() => {
-                        Object.keys(siteStatuses.value).forEach(siteId => {
-                            const totalGuns = initialSiteCapacities.value[siteId] || 5; // Fallback to 5 if not found
+                        Object.keys(siteStatuses.value).forEach(siteId => { // 迭代所有 siteStatuses 中的 siteId
+                            const totalGuns = initialSiteCapacities.value[siteId]; // 使用已在 initialSiteCapacities 中被限制過的總槍數 (<=2)
                             const currentStatus = siteStatuses.value[siteId];
                             if (!currentStatus) return; // Skip if status for siteId somehow disappeared
 
