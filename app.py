@@ -216,11 +216,11 @@ def api_meter_values():
 
     try:
         with conn.cursor() as cursor:
-            cursor.execute("SELECT DISTINCT charge_point_id FROM metervaule_datas ORDER BY charge_point_id")
+            cursor.execute("SELECT DISTINCT charge_point_id FROM metervalue_datas ORDER BY charge_point_id")
             charge_point_ids_for_filter = [row['charge_point_id'] for row in cursor.fetchall()]
 
-            base_query = "SELECT * FROM metervaule_datas"
-            base_count_query = "SELECT COUNT(*) FROM metervaule_datas"
+            base_query = "SELECT * FROM metervalue_datas"
+            base_count_query = "SELECT COUNT(*) FROM metervalue_datas"
             where_clause = ""
             query_params_list = []
             count_params_list = []
