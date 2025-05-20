@@ -57,21 +57,22 @@ def home(page="charge_points", subpage=None): # page 和 subpage 從 URL 路徑�
                 count_query = "SELECT COUNT(*) FROM charge_points"
                 params = (offset, ITEMS_PER_PAGE)
                 count_params = ()
-                print(f"DEBUG [charge_points]: Query: {query}, Params: {params}") # 新增偵錯訊息
-            elif page == "customer_management":
-                if subpage == "registered_users":
-                    query = "SELECT * FROM authorize_datas ORDER BY id DESC LIMIT %s, %s"
-                    count_query = "SELECT COUNT(*) FROM authorize_datas"
-                    params = (offset, ITEMS_PER_PAGE)
-                    count_params = ()
-                elif subpage == "authorized_users":
-                    query = "SELECT * FROM authorized_users LIMIT %s, %s"
-                    count_query = "SELECT COUNT(*) FROM authorized_users"
-                    params = (offset, ITEMS_PER_PAGE)
-                    count_params = ()
-                # add_user 頁面通常是 GET 請求顯示表單，POST 請求處理提交，這裡主要處理 GET 顯示
-                elif subpage == "add_user":
-                    query = None
+                # print(f"DEBUG [charge_points]: Query: {query}, Params: {params}")
+            elif page == "charge_station":
+                # 主要內容由 Vue 處理，所以主查詢為 None
+                query = None
+                # 但我們需要額外獲取 charge_points 的資料以在同一頁顯示表格
+                cp_table_query = "SELECT * FROM charge_points LIMIT %s, %s"
+                cp_table_count_query = "SELECT COUNT(*) FROM charge_points"
+                # 使用相同的 offset 和 ITEMS_PER_PAGE 進行分頁
+                cursor.execute(cp_table_query, (offset, ITEMS_PER_PAGE))
+                datas = cursor.fetchall() # 將 charge_points 資料存入 datas
+                columns = list(datas[0].keys()) if datas else [] # 同上
+                cursor.execute(cp_table_count_query, ())
+                result = cursor.fetchone()
+                total_items = result['COUNT(*)'] if result else 0 # 同上
+
+            # 客戶管理邏輯已移至 management_index
             elif page == "transactions":
                 query = "SELECT * FROM charging_datas ORDER BY id DESC LIMIT %s, %s"
                 count_query = "SELECT COUNT(*) FROM charging_datas"
@@ -90,13 +91,13 @@ def home(page="charge_points", subpage=None): # page 和 subpage 從 URL 路徑�
             if query:
                 cursor.execute(query, params)
                 datas = cursor.fetchall()
-                print(f"DEBUG [{page}]: Fetched datas: {datas}") # 新增偵錯訊息
+                # print(f"DEBUG [{page}]: Fetched datas: {datas}")
                 if datas:
                     columns = list(datas[0].keys())
                 cursor.execute(count_query, count_params)
                 result = cursor.fetchone()
                 total_items = result['COUNT(*)'] if result else 0
-                print(f"DEBUG [{page}]: Total items: {total_items}") # 新增偵錯訊息
+                # print(f"DEBUG [{page}]: Total items: {total_items}")
             # For pages handled by Vue or no data pages, total_items might remain 0 or be set differently
     finally:
         conn.close()
@@ -105,6 +106,72 @@ def home(page="charge_points", subpage=None): # page 和 subpage 從 URL 路徑�
 
     return render_template("home.html", page=page, subpage=subpage, datas=datas, columns=columns,
                                   current_page=page_num, total_pages=total_pages, header_title=header_title) # 修改: 傳遞 header_title
+
+# --- 新的管理區塊 ---
+@app.route("/management", methods=["GET"])
+@app.route("/management/<section>", methods=["GET"])
+@app.route("/management/<section>/<sub_section>", methods=["GET"])
+def management_index(section="site_admin", sub_section=None):
+    page_num = int(request.args.get("page_num", 1))
+    offset = (page_num - 1) * ITEMS_PER_PAGE
+    conn = pymysql.connect(**db_config)
+    datas = []
+    total_items = 0
+    columns = []
+    management_header_title = "管理"
+
+    # 預設客戶管理的子區塊
+    if section == "customer_admin" and sub_section is None:
+        sub_section = "registered_users"
+
+    try:
+        with conn.cursor() as cursor:
+            if section == "customer_admin":
+                if sub_section == "registered_users":
+                    query = "SELECT * FROM authorize_datas ORDER BY id DESC LIMIT %s, %s"
+                    count_query = "SELECT COUNT(*) FROM authorize_datas"
+                    params = (offset, ITEMS_PER_PAGE)
+                    count_params = ()
+                elif sub_section == "authorized_users":
+                    query = "SELECT * FROM authorized_users LIMIT %s, %s"
+                    count_query = "SELECT COUNT(*) FROM authorized_users"
+                    params = (offset, ITEMS_PER_PAGE)
+                    count_params = ()
+                elif sub_section == "add_user":
+                    query = None # GET 請求顯示表單
+                else:
+                    query = None
+            elif section == "site_admin":
+                # 站區管理目前施工中
+                query = None
+            else:
+                query = None
+
+            if query:
+                cursor.execute(query, params)
+                datas = cursor.fetchall()
+                if datas:
+                    columns = list(datas[0].keys())
+                cursor.execute(count_query, count_params)
+                result = cursor.fetchone()
+                total_items = result['COUNT(*)'] if result else 0
+    finally:
+        conn.close()
+
+    total_pages = (total_items + ITEMS_PER_PAGE - 1) // ITEMS_PER_PAGE if total_items > 0 else 0
+
+    return render_template("management_dashboard.html",
+                           section=section,
+                           sub_section=sub_section,
+                           datas=datas,
+                           columns=columns,
+                           current_page=page_num,
+                           total_pages=total_pages,
+                           management_header_title=management_header_title)
+
+
+
+
 
 # --- 假數據 ---
 MOCK_SITES = [
@@ -219,13 +286,18 @@ def api_station_data(station_id):
 
 
 # Add new registered user
-@app.route("/add_user", methods=["POST"])
-def add_user():
+# 舊的 add_user 路由，如果不再使用可以考慮移除或加上 deprecation 警告
+# @app.route("/add_user", methods=["POST"])
+# def add_user(): ...
+
+# 新的 add_user 路由，用於管理區塊
+@app.route("/management/customer_admin/add_user_submit", methods=["POST"])
+def add_user_management():
     id_token = request.form.get("id_token")
     user_type = request.form.get("type")
 
     if not id_token or not user_type:
-        return redirect(url_for('home', page='customer_management', subpage='add_user'))
+        return redirect(url_for('management_index', section='customer_admin', sub_section='add_user'))
 
     conn = pymysql.connect(**db_config)
     try:
@@ -235,11 +307,10 @@ def add_user():
             conn.commit()
     except pymysql.Error as e:
         print(f"Database error: {e}")
-        return redirect(url_for('home', page='customer_management', subpage='add_user'))
+        return redirect(url_for('management_index', section='customer_admin', sub_section='add_user'))
     finally:
         if conn: conn.close()
-
-    return redirect(url_for('home', page='customer_management', subpage='registered_users'))
+    return redirect(url_for('management_index', section='customer_admin', sub_section='registered_users'))
 
 if __name__ == "__main__":
     import random # Import random for mock data
