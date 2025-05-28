@@ -62,16 +62,26 @@ def home(page="charge_points", subpage=None): # page 和 subpage 從 URL 路徑�
             elif page == "charge_station":
                 # 主要內容由 Vue 處理，所以主查詢為 None
                 query = None
-                # 但我們需要額外獲取 charge_points 的資料以在同一頁顯示表格
-                cp_table_query = "SELECT * FROM charge_points LIMIT %s, %s"
-                cp_table_count_query = "SELECT COUNT(*) FROM charge_points"
-                # 使用相同的 offset 和 ITEMS_PER_PAGE 進行分頁
-                cursor.execute(cp_table_query, (offset, ITEMS_PER_PAGE))
-                datas = cursor.fetchall() # 將 charge_points 資料存入 datas
-                columns = list(datas[0].keys()) if datas else [] # 同上
-                cursor.execute(cp_table_count_query, ())
-                result = cursor.fetchone()
-                total_items = result['COUNT(*)'] if result else 0 # 同上
+
+                # 為 charge_station 頁面下方的表格生成模擬的交易紀錄資料
+                mock_transaction_data = [
+                    {"充電槍ID": "A-01", "充電開始時間": "10/29 16:34:42", "持續時間": "1355s", "充電結束時間": "10/29 22:04:27", "車輛最終SOC": "89%", "已充入電能": "182kw", "充電費用": "989 NTD"},
+                    {"充電槍ID": "A-02", "充電開始時間": "10/28 12:54:48", "持續時間": "2867s", "充電結束時間": "10/28 17:26:43", "車輛最終SOC": "75%", "已充入電能": "154kw", "充電費用": "798 NTD"},
+                    {"充電槍ID": "B-01", "充電開始時間": "10/28 10:55:14", "持續時間": "3437s", "充電結束時間": "10/28 16:07:12", "車輛最終SOC": "84%", "已充入電能": "167kw", "充電費用": "891 NTD"},
+                    {"充電槍ID": "B-02", "充電開始時間": "10/27 12:42:12", "持續時間": "2756s", "充電結束時間": "10/27 17:06:27", "車輛最終SOC": "74%", "已充入電能": "146kw", "充電費用": "754 NTD"},
+                    {"充電槍ID": "C-01", "充電開始時間": "10/27 10:24:56", "持續時間": "3548s", "充電結束時間": "10/27 16:27:54", "車輛最終SOC": "83%", "已充入電能": "178kw", "充電費用": "914 NTD"},
+                    {"充電槍ID": "C-02", "充電開始時間": "10/26 08:19:01", "持續時間": "4132s", "充電結束時間": "10/26 11:32:18", "車輛最終SOC": "80%", "已充入電能": "160kw", "充電費用": "820 NTD"},
+                    {"充電槍ID": "D-01", "充電開始時間": "10/27 12:42:12", "持續時間": "2756s", "充電結束時間": "10/27 17:06:27", "車輛最終SOC": "74%", "已充入電能": "146kw", "充電費用": "754 NTD"},
+                    {"充電槍ID": "D-02", "充電開始時間": "10/27 10:24:56", "持續時間": "3548s", "充電結束時間": "10/27 16:27:54", "車輛最終SOC": "83%", "已充入電能": "178kw", "充電費用": "914 NTD"},
+                ]
+
+                # 對模擬資料進行分頁
+                total_items = len(mock_transaction_data)
+                datas = mock_transaction_data[offset : offset + ITEMS_PER_PAGE]
+                # 定義表格欄位名稱
+                columns = ["充電槍ID", "充電開始時間", "持續時間", "充電結束時間", "車輛最終SOC", "已充入電能", "充電費用"]
+
+                # total_pages 會在函數結尾計算
 
             # 客戶管理邏輯已移至 management_index
             elif page == "transactions":
@@ -175,41 +185,40 @@ def management_index(section="site_admin", sub_section=None):
 
 
 # --- 假數據 ---
-MOCK_SITES = [
-    {"id": 1, "name": "A區充電樁", "diagram_x": 100, "diagram_y": 100, "description": "靠近入口"},
-    {"id": 2, "name": "B區充電樁", "diagram_x": 300, "diagram_y": 150, "description": "停車場深處"},
-    {"id": 3, "name": "C區快充樁", "diagram_x": 600, "diagram_y": 200, "description": "快速充電專用"},
-    {"id": 4, "name": "D區慢充樁", "diagram_x": 550, "diagram_y": 300, "description": "訪客車位"},
+# MOCK_SITES 已被 MOCK_GUNS 取代，因為圖表現在顯示槍而不是站點
+
+# 新的假數據：8 隻充電槍及其位置和所屬站點
+MOCK_GUNS = [
+    {"gun_id": "A-01", "site": "A區", "diagram_x": 90, "diagram_y": 90, "description": "A區槍1"},
+    {"gun_id": "A-02", "site": "A區", "diagram_x": 110, "diagram_y": 110, "description": "A區槍2"},
+    {"gun_id": "B-01", "site": "B區", "diagram_x": 290, "diagram_y": 140, "description": "B區槍1"},
+    {"gun_id": "B-02", "site": "B區", "diagram_x": 310, "diagram_y": 160, "description": "B區槍2"},
+    {"gun_id": "C-01", "site": "C區", "diagram_x": 590, "diagram_y": 190, "description": "C區槍1 (快充)"},
+    {"gun_id": "C-02", "site": "C區", "diagram_x": 610, "diagram_y": 210, "description": "C區槍2 (快充)"},
+    {"gun_id": "D-01", "site": "D區", "diagram_x": 520, "diagram_y": 290, "description": "D區槍1 (慢充)"},
+    {"gun_id": "D-02", "site": "D區", "diagram_x": 560, "diagram_y": 300, "description": "D區槍2 (慢充)"},
 ]
 
-# MOCK_SITE_STATUSES 將由 api_get_charge_point_statuses 動態生成
+# MOCK_SITE_STATUSES 已被 api_get_charge_point_statuses 動態生成槍狀態取代
 # --- 結束假數據 ---
 
 @app.route("/api/charge_sites", methods=["GET"])
 def api_get_charge_sites():
-    # 未來這部分也可能從資料庫讀取
-    return jsonify(MOCK_SITES)
+    """
+    回傳充電槍的位置、所屬站點和描述資訊，用於前端繪製圖表。
+    """
+    return jsonify(MOCK_GUNS)
 
 @app.route("/api/charge_point_statuses", methods=["GET"])
 def api_get_charge_point_statuses():
     """
-    動態生成每個充電站點的槍數狀態。
-    - "可用槍數" (available_guns) 會隨機變動。
-    - "使用中槍數" (used_guns) 會在 0 到 2 之間隨機。
-    - "其他狀態槍數" (other_status_guns) 固定為 0。
+    動態生成每個充電槍的狀態。
+    - "occupied" 狀態會隨機變動 (True/False)。
     """
-    dynamic_statuses = {}
-    TOTAL_GUNS_PER_SITE = 2 # 根據您的要求，A,B,C,D 站點的總槍數 (可用+使用) 為 2
-    for site_info in MOCK_SITES: # MOCK_SITES 定義了有哪些站點
-        site_id_str = str(site_info['id']) # API 回傳的 key 通常是字串
-        used = random.randint(0, TOTAL_GUNS_PER_SITE)
-        available = TOTAL_GUNS_PER_SITE - used
-        dynamic_statuses[site_id_str] = {
-            "available_guns": available,
-            "used_guns": used,
-            "other_status_guns": 0 # 簡化處理，避免計算問題
-        }
-    return jsonify(dynamic_statuses)
+    dynamic_gun_statuses = {}
+    for gun_info in MOCK_GUNS:
+        dynamic_gun_statuses[gun_info['gun_id']] = {"occupied": random.choice([True, False])}
+    return jsonify(dynamic_gun_statuses)
 
 # API endpoint for Meter Values (Vue controlled)
 @app.route("/api/meter_values", methods=["GET"])
@@ -266,33 +275,38 @@ def api_meter_values():
         "charge_point_ids": charge_point_ids_for_filter
     })
 
-# --- 新增：充電站詳細頁面路由 ---
-@app.route("/station/<int:station_id>", methods=["GET"])
-def station_detail(station_id):
-    # 您可以在這裡從資料庫獲取該充電站的詳細資訊
-    # 為了範例，我們只傳遞 station_id
-    return render_template("station_detail.html", station_id=station_id)
+# --- 新增：充電槍詳細頁面路由 ---
+@app.route("/gun/<string:gun_id>", methods=["GET"])
+def gun_detail(gun_id):
+    """
+    渲染單一充電槍的詳細頁面，顯示用電量曲線圖。
+    """
+    # 將 gun_id 傳遞給模板，以便前端 JavaScript 知道要獲取哪支槍的數據
+    return render_template("gun_detail.html", gun_id=gun_id)
 
-# --- 新增：獲取充電站充電槍用電量數據的 API ---
-@app.route("/api/station_data/<int:station_id>", methods=["GET"])
-@app.route("/api/station_data/<int:station_id>", methods=["GET"])
-def api_station_data(station_id):
+# --- 修改：獲取單一充電槍用電量數據的 API ---
+@app.route("/api/gun_data/<string:gun_id_from_url>", methods=["GET"])
+def api_gun_data(gun_id_from_url):
     from datetime import datetime, timedelta
-    num_guns = (station_id % 3) + 2
-    data = []
-    for i in range(num_guns):
-        gun_id = f"{station_id}-{i+1}"
-        now = datetime.now()
-        # 模擬最近 36 筆資料，每 10 秒一筆，往前推
-        power_data = [
-            {
-                "time": (now - timedelta(seconds=(35 - j) * 10)).strftime("%H:%M:%S"),
-                "value": round(abs(5 + random.random() * 20 + (j / 10) * 1.2 - (j / 18) * 1.5 + (random.random() - 0.5) * 2), 2)
-            }
-            for j in range(36)
-        ]
-        data.append({"gun_id": gun_id, "power_data": power_data})
-    return jsonify(data)
+    # 這裡模擬單一充電槍的用電量數據
+
+    # 模擬一些基於 gun_id 的變化
+    base_power = 5
+    if 'A' in gun_id_from_url: base_power = 3
+    elif 'B' in gun_id_from_url: base_power = 7
+    elif 'C' in gun_id_from_url: base_power = 15 # 快充
+    elif 'D' in gun_id_from_url: base_power = 4  # 慢充
+
+    now = datetime.now()
+    power_data_points = [
+        {"time": (now - timedelta(seconds=(35 - j) * 10)).strftime("%H:%M:%S"), "value": round(abs(base_power + random.random() * 5 + (j / 10) * 1.2 - (j / 18) * 1.5 + (random.random() - 0.5) * 2), 2)}
+        for j in range(36)
+    ]
+    # API 回傳一個包含單一槍數據的列表，以匹配 gun_detail.html 中 JS 的 .find() 邏輯
+    # 或者，如果 gun_detail.html 的 JS 被修改為直接使用對象，則可以直接回傳對象。
+    # 目前保持回傳列表，以減少對 gun_detail.html (如果已創建) 的修改。
+    data_for_this_gun = [{"gun_id": gun_id_from_url, "power_data": power_data_points}]
+    return jsonify(data_for_this_gun)
 
 
 # Add new registered user

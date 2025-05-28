@@ -1,0 +1,158 @@
+{% extends "base.html" %} {# 繼承 base.html #}
+
+{% block title %}充電槍詳細資訊 - {{ gun_id }}{% endblock %} {# 覆蓋標題 #}
+
+{% block left_menu %} {# 填充左側菜單區塊 - 可以保留或移除，看您是否希望詳細頁面也有左側選單 #}
+    {# 如果希望有左側選單，可以複製 base.html 或 home.html 的選單結構 #}
+    {# 例如： #}
+    <ul class="nav nav-pills flex-column">
+        <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('home', page='charge_station') }}">
+                <i class="bi bi-arrow-left-circle"></i> 返回充電站架構圖
+            </a>
+        </li>
+        {# 您也可以在這裡添加其他相關連結 #}
+    </ul>
+{% endblock %}
+
+{% block content %} {# 填充主要內容區塊 #}
+    <div class="container-fluid">
+        <div class="row">
+            {# 左側選單欄位，如果 block left_menu 有內容且 base.html 使用了網格佈局 #}
+            {# <nav class="col-md-3 col-lg-2 d-md-block sidebar-custom"> #}
+                {# 左側選單內容會自動填充到這裡 #}
+            {# </nav> #}
+
+            {# 主要內容欄位 #}
+            <main class="col-md-12 ms-sm-auto col-lg-12 px-md-4"> {# 這裡使用 col-md-12 讓內容佔滿整行，如果沒有左側選單 #}
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">充電槍詳細資訊: {{ gun_id }}</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                         <a href="{{ url_for('home', page='charge_station') }}" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> 返回架構圖
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-8"> {# 圖表區域 #}
+                        <div class="card">
+                            <div class="card-header">
+                                用電量曲線圖
+                            </div>
+                            <div class="card-body">
+                                {# 這裡放置圖表的 canvas 或容器 #}
+                                <canvas id="powerChart"></canvas>
+                                {# 您需要在這裡添加 JavaScript 來獲取數據並繪製圖表 #}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4"> {# 其他資訊區域 #}
+                        <div class="card">
+                            <div class="card-header">
+                                基本資訊
+                            </div>
+                            <div class="card-body">
+                                <p><strong>槍 ID:</strong> {{ gun_id }}</p>
+                                <p><strong>所屬站點:</strong> <span id="gunSite">載入中...</span></p>
+                                <p><strong>當前狀態:</strong> <span id="gunStatus">載入中...</span></p>
+                                {# 您可以在這裡顯示更多從後端獲取的槍的詳細資訊 #}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+{% endblock %}
+
+{% block body_scripts %} {# 填充 body 結束前的 script 區塊 #}
+    {# 引入圖表庫，例如 Chart.js #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script>
+    // 從全域 Vue 物件中解構出需要的方法 (如果此頁面也用 Vue 的話，但目前範例是純 JS)
+    // const { ref, onMounted, createApp } = Vue;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 從 Jinja2 模板獲取 gun_id
+        const gunId = "{{ gun_id }}";
+        const powerChartCanvas = document.getElementById('powerChart');
+        let powerChart = null; // To hold the Chart.js instance
+
+        // 獲取充電槍詳細數據和狀態的函數
+        const fetchGunData = async () => {
+            try {
+                // 獲取用電量數據
+                const powerResponse = await fetch(`{{ url_for('api_gun_data', gun_id_from_url='PLACEHOLDER') }}`.replace('PLACEHOLDER', gunId));
+                if (!powerResponse.ok) throw new Error('Failed to fetch power data for ' + gunId);
+                const powerDataArray = await powerResponse.json(); // API 回傳的是一個列表
+                const gunPowerDetail = powerDataArray.length > 0 ? powerDataArray[0] : null; // 取列表中的第一個元素
+
+                // 獲取所有槍的狀態，找到當前槍的狀態和站點資訊
+                const statusResponse = await fetch("{{ url_for('api_get_charge_point_statuses') }}");
+                 if (!statusResponse.ok) throw new Error('Failed to fetch gun statuses');
+                 const allStatuses = await statusResponse.json();
+                 const currentGunStatus = allStatuses[gunId];
+
+                 // 獲取所有槍的站點資訊
+                 const gunsResponse = await fetch("{{ url_for('api_get_charge_sites') }}");
+                 if (!gunsResponse.ok) throw new Error('Failed to fetch guns info');
+                 const allGunsInfo = await gunsResponse.json();
+                 const currentGunInfo = allGunsInfo.find(gun => gun.gun_id === gunId);
+
+                // 更新基本資訊
+                if (currentGunInfo) {
+                     document.getElementById('gunSite').textContent = currentGunInfo.site;
+                }
+                if (currentGunStatus) {
+                     document.getElementById('gunStatus').textContent = currentGunStatus.occupied ? '佔用中' : '可用';
+                     document.getElementById('gunStatus').style.color = currentGunStatus.occupied ? 'red' : 'green';
+                }
+
+                // 繪製用電量曲線圖
+                if (gunPowerDetail && gunPowerDetail.power_data && powerChartCanvas) {
+                    const labels = gunPowerDetail.power_data.map(item => item.time);
+                    const dataValues = gunPowerDetail.power_data.map(item => item.value);
+
+                    if (powerChart) {
+                        powerChart.destroy(); // Destroy previous chart instance if exists
+                    }
+
+                    powerChart = new Chart(powerChartCanvas, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: `${gunId} 用電量 (kW)`,
+                                data: dataValues,
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1,
+                                fill: false
+                            }]
+                        },
+                        options: { /* ... Chart options from previous example ... */ }
+                    });
+                } else if (powerChartCanvas) {
+                     const context = powerChartCanvas.getContext('2d');
+                     context.clearRect(0, 0, powerChartCanvas.width, powerChartCanvas.height);
+                     context.font = '16px Arial'; context.textAlign = 'center';
+                     context.fillText(gunPowerDetail ? '無用電量數據' : '無法獲取用電數據', powerChartCanvas.width / 2, powerChartCanvas.height / 2);
+                }
+            } catch (error) {
+                console.error("Error fetching or displaying gun data:", error);
+                 if (powerChartCanvas) {
+                     const context = powerChartCanvas.getContext('2d');
+                     context.clearRect(0, 0, powerChartCanvas.width, powerChartCanvas.height);
+                     context.font = '16px Arial'; context.fillStyle = 'red'; context.textAlign = 'center';
+                     context.fillText('載入數據失敗: ' + error.message, powerChartCanvas.width / 2, powerChartCanvas.height / 2);
+                 }
+            }
+        };
+
+        fetchGunData();
+        // 如果需要，可以設定定時刷新數據
+        // setInterval(fetchGunData, 5000); // 例如每 5 秒刷新一次
+    });
+    </script>
+{% endblock %}

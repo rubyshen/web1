@@ -49,12 +49,23 @@
                     <div v-if="!loading && stageConfig.width === 0" class="alert alert-warning mt-3">
                         無法載入背景圖片或設定畫布尺寸。
                     </div>
+                    <!-- Legend for gun status colors -->
+                    <div v-show="!loading && stageConfig.width > 0" class="mt-3 d-flex justify-content-center align-items-center">
+                        <span class="me-3">
+                            <svg width="15" height="15" class="me-1"><rect width="15" height="15" style="fill:rgba(23, 162, 184, 0.7);stroke-width:1;stroke:rgb(17, 122, 139)" /></svg>
+                            可用 (Available)
+                        </span>
+                        <span>
+                            <svg width="15" height="15" class="me-1"><rect width="15" height="15" style="fill:rgba(220, 53, 69, 0.8);stroke-width:1;stroke:rgb(139, 0, 0)" /></svg>
+                            佔用 (Occupied)
+                        </span>
+                    </div>
                 </div>
                 {% endraw %}
 
                 {# 在充電站架構圖下方顯示 Charge Points 表格 #}
                 <hr class="my-4"> {# 分隔線 #}
-                <h4 class="mb-3">充電樁列表 (本站區)</h4>
+                <h4 class="mb-3">充電槍歷史資料</h4>
                 {% if datas %} {# 'datas' 此處來自後端為 charge_station 頁面準備的 charge_points 資料 #}
                     <div class="table-responsive">
                         <table class="table table-striped table-bordered table-hover">
@@ -334,34 +345,31 @@ const chargeStationDiagramAppSetup = {
         const konvaContainerRef = ref(null); // Ref for the Konva container div
         let stageInstance = null; // Holds Konva.Stage instance
         let mainLayer = null;     // Holds Konva.Layer instance
-        let contentGroup = null;  // Group for all scalable content (background, sites)
-        let tooltipLabel = null;  // Holds Konva.Label for tooltip
+        let contentGroup = null;  // Group for all scalable content (background)
 
-        const sites = ref([]); // Array of site objects {id, name, diagram_x, diagram_y}
-        const siteStatuses = ref({}); // Object: { site_id: { available_guns: X, used_guns: Y } }
+        const guns = ref([]); // Array of gun objects {gun_id, site, diagram_x, diagram_y, description}
+        const gunStatuses = ref({}); // Object: { gun_id: { occupied: true/false } }
         const loading = ref(true);
         // Jinja2 will render this URL before sending to browser
         const csmsImageSrc = ref("{{ url_for('static', filename='csms.png') }}");
 
-        const initialSiteCapacities = ref({}); // To store total guns per site
+        // initialSiteCapacities is no longer needed as we deal with individual guns
         // Reactive properties for stage dimensions and background image
         const stageConfig = ref({ width: 0, height: 0 });
         const konvaBgImage = ref(null); // Stores the loaded HTMLImageElement
         const contentScale = ref(1); // Scale factor for the content group
 
-        // Reactive properties for tooltip
-        const tooltipVisible = ref(false);
-        const tooltipText = ref('');
-        const tooltipConfig = ref({ x: 0, y: 0, opacity: 0.9 });
+        // Tooltip related refs are removed
 
         const fetchSitesData = async () => {
             // Jinja2 will render this URL before sending to browser
             try {
                 const response = await fetch("{{ url_for('api_get_charge_sites') }}");
                 if (!response.ok) throw new Error('Failed to fetch sites');
-                sites.value = await response.json();
+                guns.value = await response.json(); // Now fetching guns
+                console.log("CS DIAGRAM: Fetched guns data:", guns.value);
             } catch (error) {
-                console.error("Error fetching sites:", error);
+                console.error("Error fetching guns data:", error);
             }
         };
 
@@ -371,15 +379,10 @@ const chargeStationDiagramAppSetup = {
                 const response = await fetch("{{ url_for('api_get_charge_point_statuses') }}");
                 if (!response.ok) throw new Error('Failed to fetch site statuses');
                 const statuses = await response.json();
-                siteStatuses.value = statuses; // Assign to the ref
-                // Store initial capacities
-                Object.keys(statuses).forEach(siteId => { // 針對從 API 回傳的每一個 site
-                    const status = statuses[siteId];
-                    const backendTotalGuns = (status.available_guns || 0) + (status.used_guns || 0) + (status.other_status_guns || 0);
-                    initialSiteCapacities.value[siteId] = Math.min(backendTotalGuns, 2); // 確保每個 site 的總槍數最多為 2
-                });
+                gunStatuses.value = statuses; // Assign to the ref for gun statuses
+                console.log("CS DIAGRAM: Fetched gun statuses:", gunStatuses.value);
             } catch (error) {
-                console.error("Error fetching site statuses:", error);
+                console.error("Error fetching gun statuses:", error);
             }
         };
 
@@ -426,56 +429,18 @@ const chargeStationDiagramAppSetup = {
             img.src = csmsImageSrc.value;
         };
 
-        // Konva event handlers
-        const handleKonvaMouseEnter = (konvaEvt) => {
-            // console.log("CS DIAGRAM: MouseEnter site", konvaEvt.target.getParent()?.attrs?.siteData?.name || konvaEvt.target?.attrs?.siteData?.name);
-            const group = konvaEvt.target.getParent() || konvaEvt.target; // Event might be on rect or group
-            const site = group.attrs.siteData;
-            if (!site || !stageInstance) return;
-
-            // Adjust pointer position based on content group scale
-            let pointerPosition = stageInstance.getPointerPosition(); // Use stageInstance
-            if (!pointerPosition) return;
-
-            // If content is scaled, transform pointer to scaled coordinates
-            // This part is not strictly needed if sites are on mainLayer and their coords are already scaled
-            // But keeping it for reference if interaction with scaled contentGroup items was needed.
-            // if (contentGroup && contentGroup.scaleX() !== 1) {
-            //     const transform = contentGroup.getAbsoluteTransform().copy().invert();
-            //     pointerPosition = transform.point(pointerPosition);
-            // }
-
-            const status = siteStatuses.value[site.id] || { available_guns: 'N/A', used_guns: 'N/A' };
-
-            tooltipText.value = `${site.name}\n可用: ${status.available_guns}\n使用中: ${status.used_guns}`;
-            // Tooltip position needs to be in stage coordinates
-            tooltipConfig.value.x = stageInstance.getPointerPosition().x + 15; // Use stageInstance
-            tooltipConfig.value.y = stageInstance.getPointerPosition().y + 15;
-            tooltipVisible.value = true;
-            // Opacity is handled by the watcher for tooltipConfig
-        };
-
-        const handleKonvaMouseLeave = (konvaEvt) => {
-            tooltipVisible.value = false;
-        };
-
-        const handleKonvaMouseMove = (konvaEvt) => {
-            if (tooltipVisible.value && stageInstance) {
-                let pointerPosition = stageInstance.getPointerPosition();
-                if (!pointerPosition) return; // Use stageInstance
-                // Tooltip position is in stage coordinates
-                tooltipConfig.value.x = pointerPosition.x + 15;
-                tooltipConfig.value.y = pointerPosition.y + 15;
-            }
-        };
+        // Tooltip event handlers are removed
 
         // Konva click handler for site navigation
+        // This might need to be adapted or removed if navigation logic changes with guns
         const handleKonvaClick = (konvaEvt) => {
             const group = konvaEvt.target.getParent() || konvaEvt.target; // Event might be on rect or group
-            const site = group.attrs.siteData;
-            if (site && site.id) {
-                // Use url_for from Jinja, rendered by Flask
-                window.location.href = `{{ url_for('station_detail', station_id=0) }}`.replace('/0', `/${site.id}`);
+            const gun = group.attrs.gunData; // Now using gunData
+            if (gun && gun.gun_id) {
+                // Example: Navigate to a gun detail page or log info
+                console.log("Clicked on gun:", gun.gun_id, "Navigating to detail page.");
+                // Use url_for from Jinja to generate the URL for the gun detail page
+                window.location.href = `{{ url_for('gun_detail', gun_id='PLACEHOLDER') }}`.replace('PLACEHOLDER', gun.gun_id);
             }
         };
 
@@ -484,7 +449,7 @@ const chargeStationDiagramAppSetup = {
             loading.value = true;
 
             await Promise.all([fetchSitesData(), fetchSiteStatusesData()]);
-            console.log("CS DIAGRAM: Data fetching complete. Sites:", sites.value.length, "Site Statuses:", Object.keys(siteStatuses.value).length);
+            console.log("CS DIAGRAM: Data fetching complete. Guns:", guns.value.length, "Gun Statuses:", Object.keys(gunStatuses.value).length);
             loading.value = false;
 
             // After loading is false, the v-show condition might change.
@@ -493,7 +458,7 @@ const chargeStationDiagramAppSetup = {
                 if (konvaContainerRef.value) {
                     const containerRect = konvaContainerRef.value.getBoundingClientRect();
                     stageConfig.value.width = containerRect.width;
-                    stageConfig.value.height = Math.min(containerRect.width * (9/16), 500); // Or your preferred height logic
+                    stageConfig.value.height = Math.min(containerRect.width * (9/16), 350); // Or your preferred height logic
 
                     console.log("CS DIAGRAM: Container dimensions for stage (after nextTick):", stageConfig.value.width, "x", stageConfig.value.height);
 
@@ -507,13 +472,9 @@ const chargeStationDiagramAppSetup = {
                             mainLayer = new Konva.Layer();
                             stageInstance.add(mainLayer);
                             contentGroup = new Konva.Group(); // Group for background image
-                            mainLayer.add(contentGroup);
-
-                            tooltipLabel = new Konva.Label({ listening: false }); // 讓 tooltip 不攔截滑鼠事件
-                            tooltipLabel.add(new Konva.Tag({ fill: '#333', stroke: '#555', cornerRadius: 3, pointerDirection: 'down', pointerWidth: 10, pointerHeight: 10, lineJoin: 'round', shadowColor: 'black', shadowBlur: 5, shadowOpacity: 0.4 }));
-                            tooltipLabel.add(new Konva.Text({ name: 'tooltipTextNode', text: '', fontFamily: 'Arial', fontSize: 12, padding: 8, fill: 'white' }));
-                            mainLayer.add(tooltipLabel); // Tooltip is on mainLayer, not scaled
-                            console.log("CS DIAGRAM: Konva Stage, Layer, ContentGroup, TooltipLabel initialized.");
+                            mainLayer.add(contentGroup); // Background image group
+                            // TooltipLabel initialization removed
+                            console.log("CS DIAGRAM: Konva Stage, Layer, ContentGroup initialized.");
                         } else { // If stage already exists (e.g. from a resize event later), just update size
                             stageInstance.width(stageConfig.value.width);
                             stageInstance.height(stageConfig.value.height);
@@ -548,7 +509,7 @@ const chargeStationDiagramAppSetup = {
                 "CS DIAGRAM: watchEffect triggered. Loading:", loading.value,
                 "Stage OK:", !!(stageInstance && mainLayer),
                 "BG Image OK:", !!konvaBgImage.value,
-                "Sites count:", sites.value.length,
+                "Guns count:", guns.value.length, // Changed from sites.value
                 "stageConfig:", JSON.parse(JSON.stringify(stageConfig.value))
             );
 
@@ -566,7 +527,7 @@ const chargeStationDiagramAppSetup = {
             // Clear previous drawings
             console.log("CS DIAGRAM: watchEffect - Clearing previous drawings.");
             contentGroup.destroyChildren(); // Clear only children of contentGroup (i.e., the background image)
-            mainLayer.find('.site-marker-group').forEach(group => group.destroy()); // Clear site markers from mainLayer
+            mainLayer.find('.gun-marker-group').forEach(group => group.destroy()); // Clear gun markers from mainLayer
 
             // Apply scale ONLY to the content group (which will hold the background)
             if (contentGroup) {
@@ -591,79 +552,72 @@ const chargeStationDiagramAppSetup = {
                 console.warn("CS DIAGRAM: watchEffect - Background image not drawn. konvaBgImage:", !!konvaBgImage.value, "stageConfig.width:", stageConfig.value.width);
             }
 
-            // 2. Draw Sites (directly on mainLayer, with scaled coordinates)
-            console.log("CS DIAGRAM: watchEffect - Drawing", sites.value.length, "sites.");
-            sites.value.forEach(site => {
+            // 2. Draw Guns (directly on mainLayer, with scaled coordinates)
+            console.log("CS DIAGRAM: watchEffect - Drawing", guns.value.length, "guns.");
+            guns.value.forEach(gun => {
                 const group = new Konva.Group({
                     // Scale the original coordinates to fit the stage
-                    x: site.diagram_x * contentScale.value,
-                    y: site.diagram_y * contentScale.value,
-                    name: 'site-marker-group', // Add a name for easier selection/removal
-                    siteData: site // Store site data directly on the Konva node
+                    x: gun.diagram_x * contentScale.value,
+                    y: gun.diagram_y * contentScale.value,
+                    name: 'gun-marker-group', // Name for easy selection
+                    gunData: gun // Store gun data directly on the Konva node
                 });
 
-                const availableGuns = siteStatuses.value[site.id]?.available_guns ?? -1; // Default to -1 if status not found, to avoid red
-                const rectFillColor = availableGuns === 0 ? 'rgba(220, 53, 69, 0.8)' : 'rgba(0, 123, 255, 0.7)'; // Red if 0, else blue
-                const rectStrokeColor = availableGuns === 0 ? 'rgb(139, 0, 0)' : '#0056b3'; // Darker red for stroke, else default blue stroke
-
+                const isOccupied = gunStatuses.value[gun.gun_id]?.occupied ?? false;
+                const rectFillColor = isOccupied ? 'rgba(220, 53, 69, 0.8)' : 'rgba(23, 162, 184, 0.7)'; // Red if occupied, else info/blue/green
+                const rectStrokeColor = isOccupied ? 'rgb(139, 0, 0)' : '#117a8b';
 
                 group.add(new Konva.Rect({
-                    width: 80, height: 40, // These are now absolute pixel values, not scaled
+                    width: 50, height: 40, // Adjusted height for gun_id and icon
                     fill: rectFillColor, stroke: rectStrokeColor, strokeWidth: 2, cornerRadius: 5,
                     shadowColor: 'black', shadowBlur: 5, shadowOpacity: 0.3,
                     shadowOffsetX: 2, shadowOffsetY: 2
                 }));
-                group.add(new Konva.Text({
-                    text: `${site.name}\n(可用: ${siteStatuses.value[site.id]?.available_guns ?? 'N/A'})`, // Display site name and available guns
-                    fontSize: 10, // Slightly smaller font if needed to fit more text
-                    fill: 'white',
-                    padding: 5, align: 'center', verticalAlign: 'middle',
-                    width: 80, height: 40, listening: false // Text doesn't need to listen for events
-                }));
-                // Tooltip functionality remains the same, triggered by mouseenter/leave/move on the group
 
-                group.on('mouseenter', handleKonvaMouseEnter);
-                group.on('mouseleave', handleKonvaMouseLeave);
-                group.on('mousemove', handleKonvaMouseMove);
+                // Text for gun_id
+                group.add(new Konva.Text({
+                    text: `${gun.gun_id}`, // Display gun ID
+                    fontSize: 9,
+                    fill: 'white',
+                    align: 'center',
+                    verticalAlign: 'top', // Align to the top of its allocated space
+                    x: 0,
+                    y: 4, // Position near the top
+                    width: 50,
+                    height: 15, // Allocate space for gun_id text
+                    listening: false
+                }));
+
+                // Text for the EV station icon (using a Unicode plug symbol)
+                group.add(new Konva.Text({
+                    text: '\u26FD', // FUEL PUMP Unicode character (U+26FD)
+                    fontSize: 14, // Make icon a bit larger
+                    fill: 'white',
+                    align: 'center',
+                    verticalAlign: 'bottom', // Align to the bottom of its allocated space
+                    x: 0,
+                    y: 18, // Position below gun_id text
+                    width: 50,
+                    height: 20, // Allocate space for icon
+                    listening: false
+                }));
+
+                // Tooltip event handlers are removed for now
                 group.on('click', handleKonvaClick); // 添加點擊事件監聽器
                 mainLayer.add(group); // Add site markers directly to mainLayer
             });
 
-            // Ensure tooltip is always on top, with checks
-            if (tooltipLabel && mainLayer) { // Ensure mainLayer exists
-                console.log("CS DIAGRAM: watchEffect - Attempting moveToTop. Tooltip parent:", tooltipLabel.getParent(), "Tooltip layer:", tooltipLabel.getLayer(), "MainLayer parent:", mainLayer.getParent());
-                if (tooltipLabel.getLayer()) { // Check if it's part of a layer
-                    tooltipLabel.moveToTop();
-                } else {
-                    console.warn("CS DIAGRAM: watchEffect - tooltipLabel has no layer or parent. Re-adding to mainLayer and then moveToTop.");
-                    mainLayer.add(tooltipLabel); // Re-add it to the mainLayer (not contentGroup)
-                    tooltipLabel.moveToTop();    // Now try moveToTop on mainLayer
-                }
-            }
+            // Tooltip moveToTop logic removed
             console.log("CS DIAGRAM: watchEffect - batchDraw called after moveToTop attempt.");
             mainLayer.batchDraw(); // Redraw the layer efficiently
         });
-
-        // Watch for tooltip state changes to update the Konva Label
-        Vue.watch([tooltipVisible, tooltipText, tooltipConfig], ([visible, text, config]) => {
-            if (tooltipLabel) {
-                tooltipLabel.visible(visible);
-                const textNode = tooltipLabel.findOne('.tooltipTextNode');
-                if (textNode) textNode.text(text);
-                tooltipLabel.position({ x: config.x, y: config.y });
-                tooltipLabel.opacity(config.opacity !== undefined ? config.opacity : 0.9);
-                if (tooltipLabel.getLayer()) {
-                    tooltipLabel.getLayer().batchDraw();
-                }
-            }
-        }, { deep: true }); // Use deep watch for tooltipConfig object
 
         return { // Return values needed by the template
             loading,
             stageConfig, // Used for v-if/v-show
             konvaContainerRef, // For the div element
-            sites, // Potentially for debugging or other template logic
-            siteStatuses // Potentially for debugging
+            guns, // Potentially for debugging or other template logic
+            gunStatuses // Potentially for debugging
         };
     }
 };
