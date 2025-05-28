@@ -2,29 +2,13 @@
 
 {% block title %}充電槍詳細資訊 - {{ gun_id }}{% endblock %} {# 覆蓋標題 #}
 
-{% block left_menu %} {# 填充左側菜單區塊 - 可以保留或移除，看您是否希望詳細頁面也有左側選單 #}
-    {# 如果希望有左側選單，可以複製 base.html 或 home.html 的選單結構 #}
-    {# 例如： #}
-    <ul class="nav nav-pills flex-column">
-        <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('home', page='charge_station') }}">
-                <i class="bi bi-arrow-left-circle"></i> 返回充電站架構圖
-            </a>
-        </li>
-        {# 您也可以在這裡添加其他相關連結 #}
-    </ul>
-{% endblock %}
-
 {% block content %} {# 填充主要內容區塊 #}
-    <div class="container-fluid">
-        <div class="row">
-            {# 左側選單欄位，如果 block left_menu 有內容且 base.html 使用了網格佈局 #}
-            {# <nav class="col-md-3 col-lg-2 d-md-block sidebar-custom"> #}
-                {# 左側選單內容會自動填充到這裡 #}
-            {# </nav> #}
-
-            {# 主要內容欄位 #}
-            <main class="col-md-12 ms-sm-auto col-lg-12 px-md-4"> {# 這裡使用 col-md-12 讓內容佔滿整行，如果沒有左側選單 #}
+    {# Removed container-fluid and row/col structure that was here, 
+       as base.html's content block is already the main content area.
+       If specific container/row/col is needed inside the content, add it here.
+       For a full-width feel within the content block, direct content is fine.
+    #}
+            <main> {# Or simply start with the h1 if no further main element is needed #}
                 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">充電槍詳細資訊: {{ gun_id }}</h1>
                     <div class="btn-toolbar mb-2 mb-md-0">
@@ -63,11 +47,9 @@
                 </div>
 
             </main>
-        </div>
-    </div>
 {% endblock %}
 
-{% block body_scripts %} {# 填充 body 結束前的 script 區塊 #}
+{% block scripts_extra %} {# 填充 body 結束前的 script 區塊, 更改區塊名稱以匹配 base.html #}
     {# 引入圖表庫，例如 Chart.js #}
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
     <script>

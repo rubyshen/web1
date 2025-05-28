@@ -2,41 +2,12 @@
 
 {% block title %}充電站管理系統 - {{ page | replace('_', ' ') | title }}{% endblock %} {# 覆蓋標題 #}
 
-{% block left_menu %} {# 填充左側菜單區塊 #}
-            <ul class="nav nav-pills flex-column">
-                <li class="nav-item">
-                    <a class="nav-link {% if page == 'charge_station' %}active{% endif %}" href="{{ url_for('home', page='charge_station') }}">
-                        <i class="bi bi-diagram-3"></i> 充電站架構圖
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if page == 'charge_points' %}active{% endif %}" href="{{ url_for('home', page='charge_points') }}">
-                        <i class="bi bi-ev-station"></i> 充電樁管理
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if page == 'transactions' %}active{% endif %}" href="{{ url_for('home', page='transactions') }}">
-                        <i class="bi bi-receipt"></i> 交易紀錄
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if page == 'meter_values' %}active{% endif %}" href="{{ url_for('home', page='meter_values') }}">
-                        <i class="bi bi-speedometer2"></i> 電表資料紀錄
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {% if page == 'adr_events' %}active{% endif %}" href="{{ url_for('home', page='adr_events') }}">
-                        <i class="bi bi-broadcast"></i> ADR事件紀錄
-                    </a>
-                </li>
-            </ul>
-{% endblock %} {# 結束左側菜單區塊 #}
-
 {% block content %} {# 填充主要內容區塊 #}
             {% if page == "charge_station" %} {# CHARGE STATION CONTENT - Vue will handle this #}
                 {% raw %}
+                <!-- The h5 title "充電站架構圖" below has been removed as per request -->
                 <div id="charge-station-diagram-app">
-                    <h5 class="card-title mb-3">充電站架構圖</h5>
+                    <!-- <h5 class="card-title mb-3">充電站架構圖</h5> -->
                     <div v-if="loading" class="d-flex justify-content-center my-3">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">載入中...</span>
@@ -205,15 +176,8 @@
                 </div>
             {% elif page != "charge_station" and page != "meter_values" %} {# 如果不是架構圖頁面且不是 meter_values (因為 meter_values 由 Vue 處理)，就顯示資料表 #}
                 <h3 class="mt-4 mb-3">
-                    {# 動態標題 #}
-                    {% if page == 'charge_points' %}充電樁管理
-                    {% elif page == 'customer_management' and subpage == 'registered_users' %}已註冊用戶
-                    {% elif page == 'customer_management' and subpage == 'authorized_users' %}已授權用戶
-                    {% elif page == 'transactions' %}交易紀錄
-                    {# meter_values title is handled by Vue now, but if you need a general title for other tables: #}
-                    {% elif page == 'adr_events' %}ADR事件紀錄
-                    {% else %}資料表
-                    {% endif %}
+                    {# The dynamic H3 title block that was here has been removed as per request.
+                       Content tables will now appear directly. #}
                 </h3>
                 {% if datas %} {# 只有在有資料時才顯示表格 #}
                     <div class="table-responsive">
@@ -259,7 +223,7 @@
             {% endif %} {# endif subpage == "add_user" / page != "charge_station" #}
 {% endblock %} {# 結束主要內容區塊 #}
 
-{% block body_scripts %} {# 填充 body 結束前的 script 區塊 #}
+{% block scripts_extra %} {# 填充 body 結束前的 script 區塊, 更改區塊名稱以匹配 base.html #}
 {# Original unpkg links - commented out for testing #}
 {# <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script> #}
 {# <script src="https://unpkg.com/konva@latest/konva.min.js"></script> #}

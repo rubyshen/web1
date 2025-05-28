@@ -1,0 +1,64 @@
+<ul class="nav nav-pills flex-column mb-auto"> {# Bootstrap nav classes #}
+    <li class="nav-item">
+        <a href="{{ url_for('main_page') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'main_page' else '' }}">
+            <i class="bi bi-house-door me-2"></i>
+            主選單
+        </a>
+    </li>
+    <li class="nav-item">
+        {# This is the parent link for Zhongxing Campus. It should be active if any of its sub-pages are active. #}
+        {# The href points to the default/overview page for Zhongxing. #}
+        <a href="{{ url_for('home', page='charge_station') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'home' else '' }}">
+            <i class="bi bi-buildings me-2"></i>
+            中興院區
+        </a>
+        {# Nested UL for sub-menu items, styled with Bootstrap nav classes and indentation #}
+        <ul class="nav flex-column ms-3">
+            <li class="nav-item"><a href="{{ url_for('home', page='charge_station') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'home' and page == 'charge_station' else '' }}"><i class="bi bi-diagram-3 me-2"></i>充電站即時狀態</a></li>
+            <li class="nav-item"><a href="{{ url_for('home', page='charge_points') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'home' and page == 'charge_points' else '' }}"><i class="bi bi-ev-station me-2"></i>充電樁列表</a></li>
+            <li class="nav-item"><a href="{{ url_for('home', page='transactions') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'home' and page == 'transactions' else '' }}"><i class="bi bi-receipt me-2"></i>交易紀錄</a></li>
+            <li class="nav-item"><a href="{{ url_for('home', page='adr_events') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'home' and page == 'adr_events' else '' }}"><i class="bi bi-broadcast me-2"></i>ADR事件</a></li>
+            <li class="nav-item"><a href="{{ url_for('home', page='meter_values') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'home' and page == 'meter_values' else '' }}"><i class="bi bi-speedometer2 me-2"></i>電錶數據</a></li>
+        </ul>
+    </li>
+    <li class="nav-item">
+        <a href="#" id="guangfu-link" class="nav-link text-white"> {# Added ID for JS hook #}
+            <i class="bi bi-cone-striped me-2"></i>
+            光復院區
+        </a>
+    </li>
+    <li class="nav-item">
+        <a href="{{ url_for('management_index', section='site_admin') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'management_index' else '' }}">
+            <i class="bi bi-gear-wide-connected me-2"></i>
+            管理
+        </a>
+        <ul class="nav flex-column ms-3">
+            <li class="nav-item"><a href="{{ url_for('management_index', section='site_admin') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'management_index' and section == 'site_admin' else '' }}"><i class="bi bi-clipboard-data me-2"></i>站區管理</a></li>
+            <li class="nav-item">
+                {# Parent link for Customer Admin #}
+                <a href="{{ url_for('management_index', section='customer_admin', sub_section='registered_users') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'management_index' and section == 'customer_admin' else '' }}">
+                    <i class="bi bi-people me-2"></i>客戶管理
+                </a>
+                <ul class="nav flex-column ms-2 ps-2"> {# Further indent sub-sub-menu #}
+                    <li class="nav-item"><a href="{{ url_for('management_index', section='customer_admin', sub_section='registered_users') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'management_index' and section == 'customer_admin' and sub_section == 'registered_users' else '' }}">已註冊用戶</a></li>
+                    <li class="nav-item"><a href="{{ url_for('management_index', section='customer_admin', sub_section='authorized_users') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'management_index' and section == 'customer_admin' and sub_section == 'authorized_users' else '' }}">已授權用戶</a></li>
+                    <li class="nav-item"><a href="{{ url_for('management_index', section='customer_admin', sub_section='add_user') }}" class="nav-link text-white {{ 'active' if request.endpoint == 'management_index' and section == 'customer_admin' and sub_section == 'add_user' else '' }}">新增用戶</a></li>
+                </ul>
+            </li>
+        </ul>
+    </li>
+    <!-- Add other main menu items here, e.g., for gun_detail if it's a main section -->
+</ul>
+<hr class="text-white">
+<div class="dropdown">
+    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-person-circle fs-4 me-2"></i>
+        <strong>使用者</strong>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
+        <li><a class="dropdown-item" href="#">設定</a></li>
+        <li><a class="dropdown-item" href="#">個人資料</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="#">登出</a></li>
+    </ul>
+</div>
